@@ -1,5 +1,4 @@
 import logging
-import math
 import time
 from collections import defaultdict
 
@@ -67,10 +66,10 @@ def _get(url: str, params: dict = None) -> dict | None:
 
 
 def _rank_to_inclusion(rank: int | None) -> float:
-    # Log scale: rank 1 → ~1.0, rank 10 → ~0.8, rank 1000 → ~0.4, rank 100000 → 0.0
+    # Hyperbolic decay: rank 1 → ~1.0, rank 100 → 0.5, rank 500 → 0.17, rank 4000 → 0.02
     if not rank or rank <= 0:
         return 0.0
-    return max(0.0, min(1.0, 1.0 - math.log10(rank) / 5.0))
+    return 1.0 / (1.0 + rank / 100.0)
 
 
 def _empty_card_details() -> dict:
