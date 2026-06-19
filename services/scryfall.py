@@ -1,4 +1,5 @@
 import logging
+import math
 import time
 from collections import defaultdict
 
@@ -63,6 +64,13 @@ def _get(url: str, params: dict = None) -> dict | None:
             return None
     logger.error("Scryfall GET %s failed after 3 attempts (429)", url)
     return None
+
+
+def _rank_to_inclusion(rank: int | None) -> float:
+    # Log scale: rank 1 → ~1.0, rank 10 → ~0.8, rank 1000 → ~0.4, rank 100000 → 0.0
+    if not rank or rank <= 0:
+        return 0.0
+    return max(0.0, min(1.0, 1.0 - math.log10(rank) / 5.0))
 
 
 def _empty_card_details() -> dict:
@@ -176,7 +184,7 @@ def get_color_identity_pool(color_identity: list[str], page_limit: int = 5) -> l
                     "oracle_id": oracle_id,
                     "edhrec_category": "",
                     "edhrec_synergy": 0.0,
-                    "edhrec_inclusion": 0.0,
+                    "edhrec_inclusion": _rank_to_inclusion(card.get("edhrec_rank")),
                     "otags": _otag_index.get(oracle_id, []),
                     "price_usd": price_usd,
                     "rarity": card.get("rarity", ""),
