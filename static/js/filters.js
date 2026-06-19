@@ -22,25 +22,24 @@ document.addEventListener('DOMContentLoaded', () => {
     nLabel.textContent = maxN;
     inclusionLabel.textContent = maxInclusion;
 
-    // Step 1+2: Apply price cap and pauper to EDHRec section
+    // Step 1+2+3: Apply price cap, pauper, and inclusion cap to EDHRec section
     edhrecCards.forEach(card => {
       const price = parseFloat(card.dataset.price);
       const rarity = card.dataset.rarity;
-      const hide = price > maxPrice || (pauperOnly && rarity !== 'common');
+      const inclusion = parseInt(card.dataset.inclusion, 10);
+      const hide = price > maxPrice || (pauperOnly && rarity !== 'common') || inclusion > maxInclusion;
       card.classList.toggle('hidden', hide);
     });
 
-    // Step 1+2+3: Apply price cap, pauper, and inclusion cap to Slept On section
-    // Then step 4: Apply N limit (count only cards not already hidden)
+    // Step 1+2: Apply price cap and pauper to Slept On section
+    // Then step 3: Apply N limit (count only cards not already hidden)
     let visibleCount = 0;
     sleptOnCards.forEach(card => {
       const price = parseFloat(card.dataset.price);
       const rarity = card.dataset.rarity;
-      const inclusion = parseInt(card.dataset.inclusion, 10);
 
       const hiddenByFilters = price > maxPrice
-        || (pauperOnly && rarity !== 'common')
-        || inclusion > maxInclusion;
+        || (pauperOnly && rarity !== 'common');
 
       if (hiddenByFilters) {
         card.classList.add('hidden');
