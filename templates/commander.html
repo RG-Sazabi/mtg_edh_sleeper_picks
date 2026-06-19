@@ -52,6 +52,7 @@
       <div class="card-info">
         <strong>{{ card.name }}</strong>
         <span>Score: {{ card.buzzword_score | round(2) }}</span>
+        <span>Inclusion: {{ (card.edhrec_inclusion * 100) | round(1) }}%</span>
         <span>Price: {% if card.price_usd %}${{ "%.2f" | format(card.price_usd) }}{% else %}N/A{% endif %}</span>
         <span>{{ card.rarity | capitalize }}</span>
         <span>Tags: {{ card.otags[:3] | join(", ") }}{% if card.otags | length > 3 %}…{% endif %}</span>
