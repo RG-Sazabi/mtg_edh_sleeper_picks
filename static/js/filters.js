@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     nLabel.textContent = maxN;
     inclusionLabel.textContent = maxInclusion;
 
-    // Step 1+2: Apply price cap and pauper to EDHRec section
+    // Apply price cap and pauper to EDHRec section
     edhrecCards.forEach(card => {
       const price = parseFloat(card.dataset.price);
       const rarity = card.dataset.rarity;
@@ -30,8 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
       card.classList.toggle('hidden', hide);
     });
 
-    // Step 1+2+3: Apply price cap, pauper, and inclusion cap to Slept On section
-    // Then step 4: Apply N limit (count only cards not already hidden)
+    // Apply price cap, pauper, and inclusion cap to Slept On section, then N limit
     let visibleCount = 0;
     sleptOnCards.forEach(card => {
       const price = parseFloat(card.dataset.price);

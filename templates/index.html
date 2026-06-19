@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Search — MTG EDH Sleeper Picks{% endblock %}
+{% block content %}
+<h1>MTG EDH Sleeper Picks</h1>
+<p>Find underplayed cards for your Commander deck.</p>
+<form method="POST" action="{{ url_for('index') }}">
+  <input type="text" name="commander" placeholder="e.g. Atraxa, Praetors' Voice" required autofocus>
+  <button type="submit">Analyze</button>
+</form>
+{% endblock %}

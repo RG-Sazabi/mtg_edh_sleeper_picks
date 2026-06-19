@@ -148,7 +148,7 @@ def get_cards_collection(names: list[str]) -> dict[str, dict]:
     return result
 
 
-def get_color_identity_pool(color_identity: list[str], page_limit: int = 5) -> list[dict]:
+def get_color_identity_pool(color_identity: list[str], page_limit: int = 25) -> list[dict]:
     _load_otag_index()
     color_string = "".join(sorted(color_identity))
     query = f"id<={color_string} f:edh"
