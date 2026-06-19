@@ -45,16 +45,24 @@ def _load_otag_index() -> None:
 
 
 def _get(url: str, params: dict = None) -> dict | None:
-    try:
-        resp = requests.get(url, params=params, headers=HEADERS, timeout=15)
-        time.sleep(0.1)
-        if resp.status_code == 200:
-            return resp.json()
-        logger.error("Scryfall GET %s returned %s", url, resp.status_code)
-        return None
-    except Exception as e:
-        logger.error("Scryfall GET %s failed: %s", url, e)
-        return None
+    for attempt in range(3):
+        try:
+            resp = requests.get(url, params=params, headers=HEADERS, timeout=15)
+            time.sleep(0.15)
+            if resp.status_code == 200:
+                return resp.json()
+            if resp.status_code == 429:
+                wait = 2 ** attempt
+                logger.warning("Scryfall 429 on %s, retrying in %ss", url, wait)
+                time.sleep(wait)
+                continue
+            logger.error("Scryfall GET %s returned %s", url, resp.status_code)
+            return None
+        except Exception as e:
+            logger.error("Scryfall GET %s failed: %s", url, e)
+            return None
+    logger.error("Scryfall GET %s failed after 3 attempts (429)", url)
+    return None
 
 
 def _empty_card_details() -> dict:
@@ -88,17 +96,71 @@ def get_card_details(name: str) -> dict:
     return result
 
 
-def get_color_identity_pool(color_identity: list[str]) -> list[dict]:
+def get_cards_collection(names: list[str]) -> dict[str, dict]:
+    """
+    Fetch details for up to N cards in batches of 75 using /cards/collection.
+    Returns a dict keyed by card name with the same shape as get_card_details.
+    """
+    _load_otag_index()
+    result = {}
+    for i in range(0, len(names), 75):
+        batch = names[i:i + 75]
+        identifiers = [{"name": n} for n in batch]
+        try:
+            resp = requests.post(
+                f"{SCRYFALL_BASE}/cards/collection",
+                json={"identifiers": identifiers},
+                headers=HEADERS,
+                timeout=30,
+            )
+            time.sleep(0.15)
+            if resp.status_code == 429:
+                logger.warning("Scryfall 429 on /cards/collection, sleeping 2s")
+                time.sleep(2)
+                resp = requests.post(
+                    f"{SCRYFALL_BASE}/cards/collection",
+                    json={"identifiers": identifiers},
+                    headers=HEADERS,
+                    timeout=30,
+                )
+                time.sleep(0.15)
+            if resp.status_code != 200:
+                logger.error("Scryfall /cards/collection returned %s", resp.status_code)
+                continue
+            for card in resp.json().get("data", []):
+                name = card.get("name", "")
+                oracle_id = card.get("oracle_id", "")
+                price_usd_raw = card.get("prices", {}).get("usd")
+                price_usd = float(price_usd_raw) if price_usd_raw else None
+                image_uri = card.get("image_uris", {}).get("normal", "")
+                if not image_uri:
+                    faces = card.get("card_faces") or [{}]
+                    image_uri = faces[0].get("image_uris", {}).get("normal", "")
+                result[name] = {
+                    "oracle_id": oracle_id,
+                    "otags": _otag_index.get(oracle_id, []),
+                    "price_usd": price_usd,
+                    "rarity": card.get("rarity", ""),
+                    "image_uri": image_uri,
+                }
+        except Exception as e:
+            logger.error("Scryfall /cards/collection batch failed: %s", e)
+    return result
+
+
+def get_color_identity_pool(color_identity: list[str], page_limit: int = 5) -> list[dict]:
     _load_otag_index()
     color_string = "".join(sorted(color_identity))
     query = f"id<={color_string} f:edh"
     url = f"{SCRYFALL_BASE}/cards/search"
     params: dict | None = {"q": query, "order": "edhrec"}
     cards = []
+    pages_fetched = 0
     try:
-        while url:
+        while url and pages_fetched < page_limit:
             data = _get(url, params)
             params = None
+            pages_fetched += 1
             if not data or data.get("object") == "error":
                 break
             for card in data.get("data", []):
