@@ -65,13 +65,6 @@ def _get(url: str, params: dict = None) -> dict | None:
     return None
 
 
-def _rank_to_inclusion(rank: int | None) -> float:
-    # Hyperbolic decay: rank 1 → ~1.0, rank 100 → 0.5, rank 500 → 0.17, rank 4000 → 0.02
-    if not rank or rank <= 0:
-        return 0.0
-    return 1.0 / (1.0 + rank / 100.0)
-
-
 def _empty_card_details() -> dict:
     return {"otags": [], "price_usd": None, "rarity": "", "image_uri": ""}
 
@@ -183,7 +176,7 @@ def get_color_identity_pool(color_identity: list[str], page_limit: int = 25) -> 
                     "oracle_id": oracle_id,
                     "edhrec_category": "",
                     "edhrec_synergy": 0.0,
-                    "edhrec_inclusion": _rank_to_inclusion(card.get("edhrec_rank")),
+                    "edhrec_inclusion": 0.0,
                     "otags": _otag_index.get(oracle_id, []),
                     "price_usd": price_usd,
                     "rarity": card.get("rarity", ""),
