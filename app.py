@@ -1,8 +1,8 @@
 import logging
 
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 
-from services import edhrec, scryfall, analysis
+from services import edhrec, scryfall, analysis, bulk
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +20,14 @@ def index():
         if name:
             return redirect(url_for("commander", slug=edhrec.slugify(name)))
     return render_template("index.html")
+
+
+@app.route("/commanders.json")
+def commanders_json():
+    # Commander-name list for the search-bar autocomplete. First hit on a cold
+    # server warms the bulk store (~30s); the page renders without waiting on it.
+    scryfall.warm_up()
+    return jsonify(bulk.commander_names())
 
 
 @app.route("/commander/<slug>")

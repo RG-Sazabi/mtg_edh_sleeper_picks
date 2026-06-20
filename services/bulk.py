@@ -69,6 +69,8 @@ _cards: list[dict] = []
 _by_name: dict[str, dict] = {}
 _by_oracle_id: dict[str, dict] = {}
 _loaded = False
+# Memoized sorted list of front-face commander names; rebuilt when indices reload.
+_commander_names: list[str] | None = None
 
 
 def _bulk_path(kind: str) -> str:
@@ -132,6 +134,20 @@ def _image_uri(card: dict) -> str:
     return (faces[0].get("image_uris") or {}).get("normal", "")
 
 
+def _can_be_commander(card: dict) -> bool:
+    """
+    Standard ``is:commander`` heuristic: a legendary creature, or any card whose
+    oracle text says it "can be your commander" (the planeswalkers/Backgrounds and
+    similar). Reads the front- plus back-face oracle text so DFC cards qualify.
+    """
+    type_line = card.get("type_line", "")
+    if "Legendary" in type_line and "Creature" in type_line:
+        return True
+    texts = [card.get("oracle_text", "")]
+    texts += [face.get("oracle_text", "") for face in card.get("card_faces") or []]
+    return any("can be your commander" in t.lower() for t in texts)
+
+
 def _trim(card: dict) -> dict:
     price_raw = (card.get("prices") or {}).get("usd")
     return {
@@ -145,6 +161,7 @@ def _trim(card: dict) -> dict:
         "edhrec_rank": card.get("edhrec_rank"),
         "commander_legal": (card.get("legalities") or {}).get("commander") == "legal",
         "layout": card.get("layout", ""),
+        "can_be_commander": _can_be_commander(card),
     }
 
 
@@ -260,7 +277,7 @@ def _neg(released: str) -> str:
 
 def ensure_loaded() -> None:
     """Download (if stale) and build all in-memory indices. Idempotent per process."""
-    global _loaded
+    global _loaded, _commander_names
     if _loaded:
         return
     cards_path = _ensure_fresh("default_cards")
@@ -269,6 +286,8 @@ def ensure_loaded() -> None:
         _build_otag_index(tags_path)
     if cards_path:
         _build_card_index(cards_path)
+    # Indices were (re)built; drop any cached derived view so it rebuilds on demand.
+    _commander_names = None
     _loaded = True
 
 
@@ -300,3 +319,20 @@ def color_identity_pool(color_identity: list[str]) -> list[dict]:
     ]
     pool.sort(key=lambda r: (r["edhrec_rank"] is None, r["edhrec_rank"] or 0))
     return pool
+
+
+def commander_names() -> list[str]:
+    """
+    Sorted, deduped list of legal-commander names (front face only) for the
+    search-bar autocomplete. Built once per process and memoized; pure in-memory.
+    """
+    global _commander_names
+    ensure_loaded()
+    if _commander_names is None:
+        names = {
+            rec["name"].split(" // ", 1)[0]
+            for rec in _cards
+            if rec["can_be_commander"] and rec["name"]
+        }
+        _commander_names = sorted(names, key=str.casefold)
+    return _commander_names

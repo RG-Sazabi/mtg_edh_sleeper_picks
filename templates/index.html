@@ -4,7 +4,12 @@
 <h1>MTG EDH Sleeper Picks</h1>
 <p>Find underplayed cards for your Commander deck.</p>
 <form method="POST" action="{{ url_for('index') }}">
-  <input type="text" name="commander" placeholder="e.g. Atraxa, Praetors' Voice" required autofocus>
+  <input type="text" name="commander" placeholder="e.g. Atraxa, Praetors' Voice"
+         list="commander-list" autocomplete="off" required autofocus>
+  <datalist id="commander-list"></datalist>
   <button type="submit">Analyze</button>
 </form>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
 {% endblock %}
