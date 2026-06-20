@@ -10,11 +10,13 @@ to all exported commanders.
 """
 
 import sys
+import json
 import shutil
 import logging
 from pathlib import Path
 
 from app import app
+from services import bulk
 from services.edhrec import slugify
 
 logging.basicConfig(level=logging.WARNING)
@@ -85,6 +87,13 @@ def main() -> None:
 
     print("Copying static assets...")
     shutil.copytree("static", DOCS_DIR / "static", dirs_exist_ok=True)
+
+    # Ship the commander-name list so the search-bar autocomplete works offline;
+    # autocomplete.js fetches this relative to docs/index.html.
+    print("Writing commander list...")
+    (DOCS_DIR / "commanders.json").write_text(
+        json.dumps(bulk.commander_names()), encoding="utf-8"
+    )
 
     exported: list[tuple[str, str]] = []
     for name in names:
