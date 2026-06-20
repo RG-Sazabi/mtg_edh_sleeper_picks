@@ -46,12 +46,19 @@ def _scope_url(slug: str, theme: str = "", budget: str = "") -> str:
 def _fetch_json_dict(url: str) -> dict | None:
     """
     Single HTTP GET to an EDHRec page URL. Returns the parsed
-    ``container.json_dict`` dict, or ``None`` on any error.
+    ``container.json_dict`` dict (commander card + all cardlists), or ``None`` on
+    any error. The page's ``panels`` block (theme ``taglinks`` etc.) lives at the
+    response root, a sibling of ``container``; it is folded into the returned dict
+    under ``panels`` so scope extractors like ``available_tags_from_data`` can
+    read it from the single ``get_commander_data`` payload.
     """
     try:
         resp = requests.get(url, headers=HEADERS, timeout=10)
         resp.raise_for_status()
-        return resp.json()["container"]["json_dict"]
+        payload = resp.json()
+        data = payload["container"]["json_dict"]
+        data["panels"] = payload.get("panels", {})
+        return data
     except Exception as e:
         logger.error("_fetch_json_dict failed for %r: %s", url, e)
         return None
