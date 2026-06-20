@@ -143,18 +143,34 @@ document.addEventListener('DOMContentLoaded', () => {
   applyFilters();
 
   // ── Tabs: switch the visible panel ──
+  // The active tab is remembered in sessionStorage so it survives the full page
+  // reload triggered by a Theme/Budget/Bracket change (which re-runs the server
+  // scope logic) instead of snapping back to the default Slept On tab.
+  const TAB_KEY = 'activeTab';
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabPanels = document.querySelectorAll('.tab-panel');
+
+  function activateTab(tabId) {
+    const target = document.getElementById(tabId);
+    const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+    if (!target || !btn) return;
+    tabButtons.forEach(b => b.classList.remove('active'));
+    tabPanels.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    target.classList.add('active');
+  }
+
   tabButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      const target = document.getElementById(btn.dataset.tab);
-      if (!target) return;
-      tabButtons.forEach(b => b.classList.remove('active'));
-      tabPanels.forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      target.classList.add('active');
+      if (!document.getElementById(btn.dataset.tab)) return;
+      sessionStorage.setItem(TAB_KEY, btn.dataset.tab);
+      activateTab(btn.dataset.tab);
     });
   });
+
+  // Restore the previously active tab after a reload.
+  const savedTab = sessionStorage.getItem(TAB_KEY);
+  if (savedTab) activateTab(savedTab);
 
   // ── Click a card to copy its name to the clipboard ──
   const toast = document.getElementById('copy-toast');
