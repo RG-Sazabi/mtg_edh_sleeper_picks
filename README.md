@@ -23,22 +23,6 @@ python -m venv .venv
 
 Open http://localhost:5000, search for a commander, and wait ~30–120 seconds for the analysis to load (Scryfall data fetch).
 
-## Generate Static Export (for GitHub Pages)
-
-```bash
-python export.py "Atraxa, Praetors' Voice" "Korvold, Fae-Cursed King"
-```
-
-This creates `docs/atraxa-praetors-voice.html`, `docs/korvold-fae-cursed-king.html`, and `docs/index.html`. Commit and push the `docs/` folder.
-
-## GitHub Pages Setup
-
-1. Push this repo to GitHub.
-2. Go to **Settings → Pages**.
-3. Under **Source**, select **Deploy from a branch**.
-4. Set branch to `master` and folder to `/docs`.
-5. Save. Your site will be live at `https://<username>.github.io/<repo>/`.
-
 ## How It Works
 
 1. Fetches EDHRec recommended cards for the commander via PyEDHRec.

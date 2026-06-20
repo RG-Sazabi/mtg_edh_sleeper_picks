@@ -354,6 +354,4 @@ The app is successful when: a user can search for any legal Commander, see all s
 - **Otag breakdown tooltip:** Show which otags contributed to a card's Buzzword Score on hover.
 - **Category grouping in Slept On:** Group Slept On cards by their highest-contributing otag category.
 - **Pre-built commander cache:** Export analysis for a curated list of commanders so GitHub Pages users get instant results without re-running locally.
-- **Price history:** Track price changes over time using Scryfall's bulk data download.
-- **Moxfield / Archidekt export:** One-click export of the Slept On list to a deck builder.
 - **Saved diagnostics presets:** Remember a user's muted-feature set across commanders (e.g. "always ignore types & subtypes").

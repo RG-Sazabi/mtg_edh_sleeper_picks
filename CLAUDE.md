@@ -12,7 +12,7 @@
 5. For every card in the commander's color identity (queried from Scryfall), compute a **Buzzword Score** = sum of TF-weighted otag values the card shares with the recommended set.
 6. Display the standard EDHRec card list plus a "Slept On" section of top-N cards by Buzzword Score, filtered by inclusion threshold, price cap, and rarity.
 
-**Deployment:** Flask dev server for local use. Static HTML export (via `flask freeze` / custom script) for GitHub Pages hosting.
+**Deployment:** Flask dev server for local use only.
 
 ---
 
@@ -25,7 +25,6 @@
 | Jinja2 | bundled with Flask | HTML templating |
 | pyedhrec | 0.0.2 | Fetch EDHRec commander data |
 | Scryfall API | REST (no key needed) | Card otags, prices (TCGPlayer via Scryfall), rarity, color identity search |
-| Frozen-Flask or custom export | latest | Static HTML export for GitHub Pages |
 
 **Scryfall pricing note:** Scryfall card objects include `prices.usd` (TCGPlayer market price). No TCGPlayer API key needed.
 
@@ -40,9 +39,6 @@ python app.py
 # Lint / Format
 flake8 .                  # Check for errors
 black .                   # Auto-format
-
-# Static export (GitHub Pages)
-python export.py          # Generates /docs folder for GitHub Pages
 ```
 
 ---
@@ -76,7 +72,6 @@ mtg_edh_sleeper_picks/
 ├── static/
 │   ├── css/style.css
 │   └── js/filters.js       # Client-side price/rarity filter logic
-├── export.py               # Static site generator for GitHub Pages → /docs
 ├── requirements.txt
 └── memory/                 # Persistent agent memory (do not delete)
 ```
@@ -129,10 +124,6 @@ mtg_edh_sleeper_picks/
 **Filters (apply to both sections):**
 - Price cap: numeric input or slider (e.g., hide cards > $X.XX).
 - Pauper toggle: when ON, show only common-rarity cards.
-
-### Static Export (`/docs`)
-- `export.py` renders each commander page to a static `.html` file under `/docs`.
-- GitHub Pages is configured to serve from `/docs` on `master`.
 
 ---
 
@@ -243,6 +234,5 @@ check `memory/MEMORY.md` for relevant prior context.
 
 - PyEDHRec 0.0.2 is an unofficial library. If it breaks, check its source and fall back to direct EDHRec JSON endpoints.
 - Scryfall `search?q=otag:X+id<=COLOR` is the query pattern for color-identity + otag filtering.
-- GitHub Pages serves from `/docs` on `master` branch — `export.py` must write there.
 - The "Slept On" section is the core differentiator of this app. Keep its logic in `services/analysis.py` and well-commented.
 - Personal use only — no auth, no user accounts, no scalability concerns.

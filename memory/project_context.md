@@ -6,7 +6,7 @@ metadata:
 ---
 
 **Fact/Decision**: MTG EDH Sleeper Picks — Flask + Jinja2 web app. Personal use only.
-**Why**: Simplest stack that runs locally and can export static HTML for GitHub Pages. No need for scalability.
+**Why**: Simplest stack that runs locally. No need for scalability.
 **How to apply**: Don't over-engineer. No auth, no database, no test suite required. (Exception: Scryfall bulk data IS persisted to disk under `cache/` — see bulk-data decision below.)
 
 ---
@@ -17,9 +17,13 @@ metadata:
 
 ---
 
-**Fact/Decision**: GitHub Pages hosting via pre-generated static HTML. `export.py` writes to `/docs` on master branch.
-**Why**: Flask can't run on GitHub Pages. User re-runs export locally to refresh data.
-**How to apply**: Keep export.py simple — render Jinja templates to static files, no server-side logic at serve time.
+**Fact/Decision**: GitHub Pages static export was DISCONTINUED on 2026-06-20.
+`export.py`, the `docs/` output, and the `frozen-flask` dep were removed (issue #16).
+**Why**: The app is now local-Flask only; maintaining pre-generated static HTML for
+a hosted site was dropped scope.
+**How to apply**: Do not reintroduce a static/hosted export. The app runs solely via
+`python app.py`. The `/commanders.json` route stays — it powers the live autocomplete,
+not an export.
 
 ---
 
