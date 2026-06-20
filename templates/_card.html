@@ -1,0 +1,19 @@
+{% macro card_item(card, show_synergy=true) %}
+<div class="card-item"
+     data-name="{{ card.name }}"
+     data-price="{{ card.price_usd if card.price_usd is not none else 9999 }}"
+     data-rarity="{{ card.rarity }}"
+     data-inclusion="{{ (card.edhrec_inclusion * 100) | int }}"
+     data-score="{{ card.buzzword_score }}"
+     data-features="{{ card.features | join('|') }}">
+  <img src="{{ card.image_uri }}" alt="{{ card.name }}" loading="lazy">
+  <div class="card-info">
+    <strong>{{ card.name }}</strong>
+    <span class="js-score">Score: {{ card.buzzword_score | round(3) }}</span>
+    {% if show_synergy %}<span>Synergy: {{ (card.edhrec_synergy * 100) | round(1) }}%</span>{% endif %}
+    <span>Inclusion: {{ (card.edhrec_inclusion * 100) | round(1) }}%</span>
+    <span>Price: {% if card.price_usd %}${{ "%.2f" | format(card.price_usd) }}{% else %}N/A{% endif %}</span>
+    <span>{{ card.rarity | capitalize }}</span>
+  </div>
+</div>
+{% endmacro %}
