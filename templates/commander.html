@@ -2,7 +2,15 @@
 {% from "_card.html" import card_item %}
 {% block title %}{{ commander.name }} — MTG EDH Sleeper Picks{% endblock %}
 {% block content %}
-<h1>{{ commander.name }}</h1>
+{% set header_commanders = commanders if (commanders is defined and commanders) else [commander] %}
+<header class="commander-header">
+  {% for c in header_commanders %}
+  <div class="commander-id">
+    {% if c.image_uri %}<img class="commander-art" src="{{ c.image_uri }}" alt="{{ c.name }}" loading="lazy">{% endif %}
+    <h1>{{ c.name }}</h1>
+  </div>
+  {% endfor %}
+</header>
 <p class="copy-hint">Tip: click any card to copy its name to your clipboard.</p>
 
 <div id="controls">
