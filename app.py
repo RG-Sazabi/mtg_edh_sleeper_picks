@@ -32,8 +32,10 @@ def commanders_json():
 
 @app.route("/commander/<slug>")
 def commander(slug):
-    # 1. Fetch commander info (color identity, display name)
-    info = edhrec.get_commander_info(slug)
+    # 1. Fetch the commander page once: info + cards + inclusion index all come
+    #    from a single stable EDHRec request.
+    data = edhrec.get_commander_data(slug)
+    info = edhrec.commander_info_from_data(data) if data else None
     if not info:
         return (
             render_template(
@@ -42,13 +44,14 @@ def commander(slug):
             404,
         )
 
-    # 2. Fetch EDHRec recommended cards
-    edhrec_cards = edhrec.get_commander_cards(slug)
+    # 2. Type-category recommendation list + the broad inclusion index.
+    edhrec_cards = edhrec.cards_from_data(data)
     if not edhrec_cards:
         return (
             render_template("error.html", message=f"No card data found for '{slug}'."),
             404,
         )
+    incl_index = edhrec.inclusion_index_from_data(data)
 
     # 3. Enrich EDHRec cards with Scryfall data from the local bulk store
     scryfall.warm_up()
@@ -59,11 +62,21 @@ def commander(slug):
     # 4. Fetch all EDH-legal cards in the commander's color identity
     color_pool = scryfall.get_color_identity_pool(info["color_identity"])
 
+    # 4b. Join EDHRec's real inclusion/synergy onto pool cards so Slept On shows
+    #     true inclusion % (not a misleading 0%). Cards absent from the index keep
+    #     their 0.0 default — the "no EDHRec data" sentinel.
+    for card in color_pool:
+        hit = incl_index.get(analysis.normalize_name(card["name"]))
+        if hit:
+            card["edhrec_inclusion"] = hit["inclusion"]
+            card["edhrec_synergy"] = hit["synergy"]
+
     # 5. Score color pool with feature-lift model (Ferrone 2026).
     #    Exclude the EDHRec recommendations AND the commander itself (it sits in
-    #    its own color pool but is never a "slept on" pick).
-    edhrec_names = {c["name"] for c in edhrec_cards}
-    edhrec_names.add(info["name"])
+    #    its own color pool but is never a "slept on" pick). Names are normalized
+    #    so a card present in the EDHRec data can't leak in at 0%.
+    edhrec_names = {analysis.normalize_name(c["name"]) for c in edhrec_cards}
+    edhrec_names.add(analysis.normalize_name(info["name"]))
     feature_stats = analysis.compute_feature_stats(edhrec_cards)
     weights = {s["feature"]: s["weight"] for s in feature_stats}
     slept_on = analysis.score_cards(color_pool, weights, edhrec_names)[
