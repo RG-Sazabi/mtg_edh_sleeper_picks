@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 # issue #17). They still feed the broader inclusion index.
 _META_TAGS = {"newcards", "highsynergycards", "topcards", "gamechangers"}
 
+# Display-only "featured" rows shown at the top of the EDHRec tab, in EDHRec's
+# order. Subset of _META_TAGS (gamechangers intentionally omitted per AC #17).
+_FEATURED_TAGS = ("newcards", "highsynergycards", "topcards")
+
 
 def slugify(name: str) -> str:
     return name.lower().replace(" ", "-").replace("'", "").replace(",", "")
@@ -95,6 +99,33 @@ def cards_from_data(data: dict) -> list[dict]:
                 continue
             seen[name] = _card_from_cardview(cv, category)
     return list(seen.values())
+
+
+def featured_sections_from_data(data: dict) -> list[dict]:
+    """
+    Ordered display-only sections (New / High Synergy / Top) from the EDHRec
+    page container. Each section: {"tag", "header", "cards": [<scoring dict>]}.
+    Empty/missing lists are omitted so the template degrades gracefully. These
+    cards are NOT part of the scoring dataset (see cards_from_data, which skips
+    these tags) — they are rendered for parity only.
+    """
+    if not data:
+        return []
+    by_tag = {cl.get("tag"): cl for cl in data.get("cardlists", [])}
+    sections: list[dict] = []
+    for tag in _FEATURED_TAGS:
+        cardlist = by_tag.get(tag)
+        if not cardlist:
+            continue
+        header = cardlist.get("header", "")
+        cards = [
+            _card_from_cardview(cv, header)
+            for cv in cardlist.get("cardviews", [])
+            if cv.get("name")
+        ]
+        if cards:
+            sections.append({"tag": tag, "header": header, "cards": cards})
+    return sections
 
 
 def inclusion_index_from_data(data: dict) -> dict[str, dict]:
