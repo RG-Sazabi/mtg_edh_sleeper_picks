@@ -10,7 +10,36 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!nSlider) return;
 
   const edhrecCards = document.querySelectorAll('#edhrec-section .card-item');
-  const sleptOnCards = document.querySelectorAll('#slept-on-grid .card-item');
+  const sleptOnGrid = document.getElementById('slept-on-grid');
+
+  // ── Live re-scoring: mute features in Diagnostics, re-rank without a reload ──
+  // Mirrors services/analysis.score_cards: a card's score is the sum of the
+  // weights of the features it carries that are not currently muted.
+  const WEIGHTS = JSON.parse(
+    document.getElementById('feature-weights')?.textContent || '{}'
+  );
+  const muted = new Set();
+
+  // Recompute every feature-carrying card's score, updating both the data-score
+  // attribute and the visible .js-score span (toFixed(3) matches Jinja round(3)).
+  function recomputeScores() {
+    document.querySelectorAll('.card-item[data-features]').forEach(card => {
+      const feats = card.dataset.features ? card.dataset.features.split('|') : [];
+      let sum = 0;
+      feats.forEach(f => { if (!muted.has(f)) sum += WEIGHTS[f] || 0; });
+      card.dataset.score = sum;
+      const span = card.querySelector('.js-score');
+      if (span) span.textContent = 'Score: ' + sum.toFixed(3);
+    });
+  }
+
+  // Re-rank the Slept On grid by current score, descending, so the N-limit in
+  // applyFilters (which iterates the grid's live children) picks the true top-N.
+  function reorderSleptOn() {
+    const cards = Array.from(sleptOnGrid.querySelectorAll('.card-item'));
+    cards.sort((a, b) => parseFloat(b.dataset.score) - parseFloat(a.dataset.score));
+    cards.forEach(card => sleptOnGrid.appendChild(card));
+  }
 
   function applyFilters() {
     const maxPrice = priceCapInput.value !== '' ? parseFloat(priceCapInput.value) : Infinity;
@@ -30,9 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
       card.classList.toggle('hidden', hide);
     });
 
-    // Apply price cap, pauper, and inclusion cap to Slept On section, then N limit
+    // Apply price cap, pauper, and inclusion cap to Slept On section, then N limit.
+    // Iterate the grid's live children so the N-limit respects the current score
+    // order after a re-rank (reorderSleptOn re-appends nodes in score-desc order).
     let visibleCount = 0;
-    sleptOnCards.forEach(card => {
+    sleptOnGrid.querySelectorAll('.card-item').forEach(card => {
       const price = parseFloat(card.dataset.price);
       const rarity = card.dataset.rarity;
       const inclusion = parseInt(card.dataset.inclusion, 10);
@@ -57,6 +88,44 @@ document.addEventListener('DOMContentLoaded', () => {
   pauperToggle.addEventListener('change', applyFilters);
   nSlider.addEventListener('input', applyFilters);
   inclusionSlider.addEventListener('input', applyFilters);
+
+  // ── Diagnostics feature toggles: mute features and re-score/re-rank live ──
+  const muteTypesSubs = document.getElementById('mute-types-subs');
+  const featureToggles = document.querySelectorAll('.feature-toggle');
+
+  function setMuted(feature, isMuted, row) {
+    if (isMuted) muted.add(feature); else muted.delete(feature);
+    if (row) row.classList.toggle('muted', isMuted);
+  }
+
+  function rescore() {
+    recomputeScores();
+    reorderSleptOn();
+    applyFilters();
+  }
+
+  // Bulk: mute/unmute every type:* and sub:* feature, syncing the row checkboxes.
+  if (muteTypesSubs) {
+    muteTypesSubs.addEventListener('change', () => {
+      const mute = muteTypesSubs.checked;
+      featureToggles.forEach(cb => {
+        const f = cb.dataset.feature;
+        if (f.startsWith('type:') || f.startsWith('sub:')) {
+          cb.checked = !mute;
+          setMuted(f, mute, cb.closest('tr'));
+        }
+      });
+      rescore();
+    });
+  }
+
+  // Per-row: mute/unmute a single feature (checked = on/contributing).
+  featureToggles.forEach(cb => {
+    cb.addEventListener('change', () => {
+      setMuted(cb.dataset.feature, !cb.checked, cb.closest('tr'));
+      rescore();
+    });
+  });
 
   // Apply defaults on page load
   applyFilters();
