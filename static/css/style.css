@@ -34,6 +34,23 @@ main {
 h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #e94560; }
 p  { margin-bottom: 1rem; color: #aaa; }
 
+/* ── Commander header ── */
+.commander-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.commander-id { display: flex; align-items: center; gap: 0.75rem; }
+.commander-art {
+  width: 110px;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  display: block;
+}
+.commander-header h1 { margin-bottom: 0; }
+
 form {
   display: flex;
   gap: 0.5rem;
