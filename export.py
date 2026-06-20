@@ -8,6 +8,7 @@ Renders each commander page to docs/{slug}.html using Flask's test client,
 copies static/ assets to docs/static/, and writes docs/index.html with links
 to all exported commanders.
 """
+
 import sys
 import shutil
 import logging
@@ -22,7 +23,7 @@ DOCS_DIR = Path("docs")
 
 
 def _fix_paths(html: str) -> str:
-    """Replace absolute Flask-generated paths with relative paths for filesystem serving."""
+    """Rewrite absolute Flask paths to relative ones for filesystem serving."""
     html = html.replace('href="/static/', 'href="static/')
     html = html.replace('src="/static/', 'src="static/')
     html = html.replace('href="/"', 'href="index.html"')
@@ -30,7 +31,7 @@ def _fix_paths(html: str) -> str:
 
 
 def export_commander(name: str) -> str | None:
-    """Render a commander page to docs/{slug}.html. Returns slug on success, None on failure."""
+    """Render a commander page to docs/{slug}.html. Returns slug or None."""
     slug = slugify(name)
     with app.test_client() as client:
         response = client.get(f"/commander/{slug}")
@@ -47,8 +48,7 @@ def export_commander(name: str) -> str | None:
 def export_index(exported: list[tuple[str, str]]) -> None:
     """Write docs/index.html listing all exported commanders as links."""
     items = "\n    ".join(
-        f'<li><a href="{slug}.html">{name}</a></li>'
-        for name, slug in exported
+        f'<li><a href="{slug}.html">{name}</a></li>' for name, slug in exported
     )
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -62,7 +62,8 @@ def export_index(exported: list[tuple[str, str]]) -> None:
   <nav><a href="index.html">MTG EDH Sleeper Picks</a></nav>
   <main>
     <h1>MTG EDH Sleeper Picks</h1>
-    <p>Pre-generated commander analyses. Run <code>python export.py "Commander Name"</code> locally to regenerate.</p>
+    <p>Pre-generated commander analyses. Run
+    <code>python export.py "Commander Name"</code> locally to regenerate.</p>
     <ul>
     {items}
     </ul>
@@ -77,7 +78,7 @@ def export_index(exported: list[tuple[str, str]]) -> None:
 def main() -> None:
     names = sys.argv[1:]
     if not names:
-        print("Usage: python export.py \"Commander Name\" [\"Another Commander\" ...]")
+        print('Usage: python export.py "Commander Name" ["Another Commander" ...]')
         sys.exit(1)
 
     DOCS_DIR.mkdir(exist_ok=True)

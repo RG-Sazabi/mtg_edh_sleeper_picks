@@ -60,4 +60,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Apply defaults on page load
   applyFilters();
+
+  // ── Tabs: switch the visible panel ──
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('.tab-panel');
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = document.getElementById(btn.dataset.tab);
+      if (!target) return;
+      tabButtons.forEach(b => b.classList.remove('active'));
+      tabPanels.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      target.classList.add('active');
+    });
+  });
+
+  // ── Click a card to copy its name to the clipboard ──
+  const toast = document.getElementById('copy-toast');
+  let toastTimer = null;
+
+  async function copyName(name) {
+    try {
+      await navigator.clipboard.writeText(name);
+    } catch (e) {
+      // Fallback for non-secure contexts / older browsers.
+      const ta = document.createElement('textarea');
+      ta.value = name;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (_) { /* give up silently */ }
+      document.body.removeChild(ta);
+    }
+  }
+
+  function showToast(name) {
+    if (!toast) return;
+    toast.textContent = `Copied "${name}"`;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 1400);
+  }
+
+  document.querySelectorAll('.card-item').forEach(card => {
+    card.addEventListener('click', () => {
+      const name = card.dataset.name;
+      if (!name) return;
+      copyName(name);
+      showToast(name);
+    });
+  });
 });

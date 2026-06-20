@@ -1,6 +1,7 @@
 flask>=3.0
 pyedhrec==0.0.2
 requests>=2.31
+ijson>=3.2
 frozen-flask>=1.0
 flake8>=7.0
 black>=26.0
