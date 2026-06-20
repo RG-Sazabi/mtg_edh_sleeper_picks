@@ -151,6 +151,15 @@ def compute_feature_stats(
     return stats
 
 
+def score_card(card: dict, weights: dict[str, float]) -> float:
+    """
+    Feature-lift score for a single card: the sum of the inclusion-weighted
+    log-lifts (``weights``) of the features it carries. Features absent from
+    ``weights`` (below ``min_support``) contribute nothing. Pure; no mutation.
+    """
+    return sum(weights[f] for f in card_features(card) if f in weights)
+
+
 def score_cards(
     color_pool: list[dict],
     weights: dict[str, float],
@@ -166,7 +175,7 @@ def score_cards(
     for card in color_pool:
         if card["name"] in edhrec_card_names:
             continue
-        score = sum(weights[f] for f in card_features(card) if f in weights)
+        score = score_card(card, weights)
         if score > 0:
             card = dict(card)
             card["buzzword_score"] = score
