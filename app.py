@@ -53,10 +53,17 @@ def commander(slug):
         )
     incl_index = edhrec.inclusion_index_from_data(data)
 
-    # 3. Enrich EDHRec cards with Scryfall data from the local bulk store
+    # 2b. Display-only featured rows (New / High Synergy / Top) shown atop the
+    #     EDHRec tab. These are NOT added to edhrec_cards or the scoring set.
+    featured = edhrec.featured_sections_from_data(data)
+    featured_cards = [c for sec in featured for c in sec["cards"]]
+
+    # 3. Enrich EDHRec + featured cards with Scryfall data from the local bulk
+    #    store in one collection call.
     scryfall.warm_up()
-    card_details = scryfall.get_cards_collection([c["name"] for c in edhrec_cards])
-    for card in edhrec_cards:
+    names = [c["name"] for c in edhrec_cards] + [c["name"] for c in featured_cards]
+    card_details = scryfall.get_cards_collection(names)
+    for card in edhrec_cards + featured_cards:
         card.update(card_details.get(card["name"], scryfall._empty_card_details()))
 
     # 4. Fetch all EDH-legal cards in the commander's color identity
@@ -92,6 +99,13 @@ def commander(slug):
         c["features"] = analysis.card_features(c)
         c["buzzword_score"] = analysis.score_card(c, weights)
 
+    # Display-score the featured cards on the same weights (for the EDHRec tab's
+    # featured rows). They are display-only — never appended to edhrec_cards and
+    # never passed to compute_feature_stats/score_cards.
+    for c in featured_cards:
+        c["features"] = analysis.card_features(c)
+        c["buzzword_score"] = analysis.score_card(c, weights)
+
     # Surface each card's feature list so the Diagnostics toggles can re-score it
     # client-side without a round trip. weights -> feature_weights for the same.
     # in_edhrec flags picks that are actually EDHRec recommendations (surfaced
@@ -104,6 +118,7 @@ def commander(slug):
         "commander.html",
         commander=info,
         edhrec_cards=edhrec_cards,
+        featured=featured,
         slept_on=slept_on,
         feature_stats=feature_stats,
         feature_weights=weights,
