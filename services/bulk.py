@@ -132,6 +132,20 @@ def _image_uri(card: dict) -> str:
     return (faces[0].get("image_uris") or {}).get("normal", "")
 
 
+def _can_be_commander(card: dict) -> bool:
+    """
+    Standard ``is:commander`` heuristic: a legendary creature, or any card whose
+    oracle text says it "can be your commander" (the planeswalkers/Backgrounds and
+    similar). Reads the front- plus back-face oracle text so DFC cards qualify.
+    """
+    type_line = card.get("type_line", "")
+    if "Legendary" in type_line and "Creature" in type_line:
+        return True
+    texts = [card.get("oracle_text", "")]
+    texts += [face.get("oracle_text", "") for face in card.get("card_faces") or []]
+    return any("can be your commander" in t.lower() for t in texts)
+
+
 def _trim(card: dict) -> dict:
     price_raw = (card.get("prices") or {}).get("usd")
     return {
@@ -145,6 +159,7 @@ def _trim(card: dict) -> dict:
         "edhrec_rank": card.get("edhrec_rank"),
         "commander_legal": (card.get("legalities") or {}).get("commander") == "legal",
         "layout": card.get("layout", ""),
+        "can_be_commander": _can_be_commander(card),
     }
 
 
