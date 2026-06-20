@@ -31,11 +31,12 @@
          data-price="{{ card.price_usd if card.price_usd is not none else 9999 }}"
          data-rarity="{{ card.rarity }}"
          data-inclusion="{{ (card.edhrec_inclusion * 100) | int }}"
-         data-score="{{ card.buzzword_score }}">
+         data-score="{{ card.buzzword_score }}"
+         data-features="{{ card.features | join('|') }}">
       <img src="{{ card.image_uri }}" alt="{{ card.name }}" loading="lazy">
       <div class="card-info">
         <strong>{{ card.name }}</strong>
-        <span>Score: {{ card.buzzword_score | round(3) }}</span>
+        <span class="js-score">Score: {{ card.buzzword_score | round(3) }}</span>
         <span>Inclusion: {{ (card.edhrec_inclusion * 100) | round(1) }}%</span>
         <span>Price: {% if card.price_usd %}${{ "%.2f" | format(card.price_usd) }}{% else %}N/A{% endif %}</span>
         <span>{{ card.rarity | capitalize }}</span>
@@ -81,16 +82,20 @@
     measures over/under-representation, and <strong>weight = P(X) × lift</strong>
     is the inclusion-weighted contribution actually added to a card's score.
   </p>
+  <label id="mute-types-subs-control">
+    <input type="checkbox" id="mute-types-subs"> Ignore types &amp; subtypes
+  </label>
   <table class="diag-table">
     <thead>
       <tr>
-        <th>Kind</th><th>Characteristic</th><th>Cards</th>
+        <th>On</th><th>Kind</th><th>Characteristic</th><th>Cards</th>
         <th>P(X)</th><th>P(base)</th><th>Lift</th><th>Weight</th>
       </tr>
     </thead>
     <tbody>
       {% for s in feature_stats %}
-      <tr class="weight-{{ 'pos' if s.weight > 0 else 'neg' }}">
+      <tr class="weight-{{ 'pos' if s.weight > 0 else 'neg' }}" data-feature="{{ s.feature }}">
+        <td><input type="checkbox" class="feature-toggle" checked data-feature="{{ s.feature }}"></td>
         <td><span class="kind kind-{{ s.kind }}">{{ s.kind }}</span></td>
         <td>{{ s.name }}</td>
         <td>{{ s.support }}</td>
@@ -105,6 +110,8 @@
 </section>
 
 <div id="copy-toast" role="status" aria-live="polite"></div>
+
+<script id="feature-weights" type="application/json">{{ feature_weights | tojson }}</script>
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
