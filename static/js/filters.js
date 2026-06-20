@@ -9,6 +9,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // Guard: only run on the commander page (controls may not exist on index/error pages)
   if (!nSlider) return;
 
+  // ── Scope selectors (theme/budget/bracket): a change updates that query param
+  // on the current URL and reloads, so the server re-runs the scope logic
+  // (which set is displayed, and — for theme only — re-scores Slept On).
+  document.querySelectorAll('select[data-param]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const url = new URL(window.location.href);
+      if (sel.value) url.searchParams.set(sel.dataset.param, sel.value);
+      else url.searchParams.delete(sel.dataset.param);
+      window.location.assign(url.toString());
+    });
+  });
+
   const edhrecCards = document.querySelectorAll('#edhrec-section .card-item');
   const sleptOnGrid = document.getElementById('slept-on-grid');
 
