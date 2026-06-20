@@ -4,11 +4,19 @@
 <h1>MTG EDH Sleeper Picks</h1>
 <p>Find underplayed cards for your Commander deck.</p>
 <form method="POST" action="{{ url_for('index') }}">
-  <input type="text" name="commander" placeholder="e.g. Atraxa, Praetors' Voice"
-         list="commander-list" autocomplete="off" required autofocus>
-  <datalist id="commander-list"></datalist>
+  <div class="autocomplete">
+    <input type="text" name="commander" id="commander-input"
+           placeholder="e.g. Atraxa, Praetors' Voice"
+           autocomplete="off" required autofocus
+           role="combobox" aria-autocomplete="list"
+           aria-controls="commander-suggestions" aria-expanded="false">
+    <ul id="commander-suggestions" class="autocomplete-list" role="listbox" hidden></ul>
+  </div>
   <button type="submit">Analyze</button>
 </form>
+<p id="autocomplete-hint" class="autocomplete-hint" hidden>
+  Press <kbd>Tab</kbd> to complete: <span id="autocomplete-top"></span>
+</p>
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>

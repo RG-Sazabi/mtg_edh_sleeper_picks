@@ -64,6 +64,70 @@ button[type="submit"] {
 
 button[type="submit"]:hover { background: #c73652; }
 
+/* ── Commander autocomplete ── */
+/* Wrapper takes the input's place in the flex row and anchors the dropdown. */
+.autocomplete {
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+}
+
+.autocomplete input[type="text"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.autocomplete-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  max-height: 16rem;
+  overflow-y: auto;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.autocomplete-list[hidden] { display: none; }
+
+.autocomplete-list li {
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.autocomplete-list li.active,
+.autocomplete-list li:hover {
+  background: #0f3460;
+  color: #fff;
+}
+
+/* The top match shown faintly inline behind the typed text (Tab to accept). */
+.autocomplete-hint {
+  font-size: 0.82rem;
+  color: #7f8aa3;
+  margin: 0.35rem 0 0;
+}
+
+.autocomplete-hint kbd {
+  background: #0f3460;
+  color: #cdd9f5;
+  border-radius: 3px;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.78rem;
+}
+
 /* ── Controls bar ── */
 #controls {
   display: flex;
