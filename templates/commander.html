@@ -14,8 +14,30 @@
 <p class="copy-hint">Tip: click any card to copy its name to your clipboard.</p>
 
 <div id="controls">
+  <label>Theme:
+    <select id="tag-select" data-param="tag">
+      <option value="">All cards</option>
+      {% for t in available_tags %}
+      <option value="{{ t.slug }}" {{ 'selected' if t.slug == selected_tag }}>{{ t.value }} ({{ t.count }})</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Budget:
+    <select id="budget-select" data-param="budget">
+      <option value="">Any</option>
+      <option value="budget"    {{ 'selected' if selected_budget == 'budget' }}>Budget</option>
+      <option value="expensive" {{ 'selected' if selected_budget == 'expensive' }}>Expensive</option>
+    </select>
+  </label>
+  <label>Bracket:
+    <select id="bracket-select" data-param="bracket">
+      <option value="">Any</option>
+      <option value="cedh" {{ 'selected' if selected_bracket == 'cedh' }}>cEDH</option>
+    </select>
+  </label>
   <label>Max price: $<input type="number" id="price-cap" min="0" step="0.01" placeholder="any"></label>
   <label><input type="checkbox" id="pauper-toggle"> Pauper only (commons)</label>
+  <p class="scope-note">Only <strong>Theme</strong> re-scores Slept On; Budget &amp; Bracket re-scope the displayed cards only.</p>
 </div>
 
 <nav class="tabs" id="tab-bar">
