@@ -62,12 +62,18 @@ def commander(slug):
         :SLEPT_ON_RENDER_CAP
     ]
 
+    # Surface each card's feature list so the Diagnostics toggles can re-score it
+    # client-side without a round trip. weights -> feature_weights for the same.
+    for c in slept_on:
+        c["features"] = analysis.card_features(c)
+
     return render_template(
         "commander.html",
         commander=info,
         edhrec_cards=edhrec_cards,
         slept_on=slept_on,
         feature_stats=feature_stats,
+        feature_weights=weights,
     )
 
 
