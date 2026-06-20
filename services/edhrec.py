@@ -18,27 +18,93 @@ _META_TAGS = {"newcards", "highsynergycards", "topcards", "gamechangers"}
 # order. Subset of _META_TAGS (gamechangers intentionally omitted per AC #17).
 _FEATURED_TAGS = ("newcards", "highsynergycards", "topcards")
 
+# Static fallback option sets for the budget/bracket selectors (issue #19).
+# EDHRec's numbered game brackets are NOT exposed via the static JSON (403 on
+# /bracket-N.json), so the bracket selector offers only the power scope that is
+# exposed — cEDH. "" = Any in both cases.
+BUDGET_OPTIONS = ("", "budget", "expensive")
+BRACKET_OPTIONS = ("", "cedh")
+
 
 def slugify(name: str) -> str:
     return name.lower().replace(" ", "-").replace("'", "").replace(",", "")
 
 
-def get_commander_data(slug: str) -> dict | None:
+def _scope_url(slug: str, theme: str = "", budget: str = "") -> str:
     """
-    Single HTTP GET to the stable EDHRec commander page. Returns the parsed
-    ``container.json_dict`` dict (commander card + all 13 cardlists), or ``None``
-    on any error. ``slug`` is re-slugified so callers can pass either a slug or a
-    display name idempotently.
+    Build an EDHRec scope-page URL: ``<slug>[/<theme>][/budget|expensive].json``.
+    ``theme`` is a single tag or bracket slug (EDHRec allows one theme slot).
     """
-    slug = slugify(slug)
-    url = f"{EDHREC_JSON_BASE}/{slug}.json"
+    path = slugify(slug)
+    if theme:
+        path += f"/{theme}"
+    if budget in ("budget", "expensive"):
+        path += f"/{budget}"
+    return f"{EDHREC_JSON_BASE}/{path}.json"
+
+
+def _fetch_json_dict(url: str) -> dict | None:
+    """
+    Single HTTP GET to an EDHRec page URL. Returns the parsed
+    ``container.json_dict`` dict, or ``None`` on any error.
+    """
     try:
         resp = requests.get(url, headers=HEADERS, timeout=10)
         resp.raise_for_status()
         return resp.json()["container"]["json_dict"]
     except Exception as e:
-        logger.error("get_commander_data failed for %r: %s", slug, e)
+        logger.error("_fetch_json_dict failed for %r: %s", url, e)
         return None
+
+
+def get_commander_data(
+    slug: str, tag: str = "", budget: str = "", bracket: str = ""
+) -> dict | None:
+    """
+    Fetch the EDHRec page ``container.json_dict`` for a commander scope. Returns
+    the commander card + all cardlists, or ``None`` on error. ``slug`` is
+    re-slugified so callers can pass either a slug or a display name idempotently.
+
+    ``theme`` = tag or bracket (tag wins; EDHRec allows one theme slug). On a
+    non-200/parse error the most-specific scope is retried dropping the
+    least-important segment in order (bracket -> budget -> base), so an
+    unsupported combo degrades gracefully instead of failing.
+    """
+    theme = tag or bracket
+    # Candidate (theme, budget) tuples, most- to least-specific.
+    attempts = [(theme, budget)]
+    if bracket and tag:  # both set -> tag took the slot; also try tag-only
+        attempts.append((tag, budget))
+    if budget:
+        attempts.append((theme, ""))
+    attempts.append(("", ""))  # base, last resort
+    for th, bg in dict.fromkeys(attempts):  # dedupe, preserve order
+        data = _fetch_json_dict(_scope_url(slug, th, bg))
+        if data:
+            return data
+    return None
+
+
+def available_tags_from_data(data: dict) -> list[dict]:
+    """
+    Pure: the commander's theme tags from ``panels.taglinks``, as
+    ``[{"slug", "value", "count"}]`` sorted by ``count`` desc. Returns ``[]`` if
+    the panel is absent (graceful — the theme select then shows only "All cards").
+    """
+    if not data:
+        return []
+    taglinks = data.get("panels", {}).get("taglinks", [])
+    tags = [
+        {
+            "slug": t.get("slug", ""),
+            "value": t.get("value", ""),
+            "count": t.get("count", 0),
+        }
+        for t in taglinks
+        if t.get("slug")
+    ]
+    tags.sort(key=lambda t: t["count"], reverse=True)
+    return tags
 
 
 def commander_info_from_data(data: dict) -> dict | None:
