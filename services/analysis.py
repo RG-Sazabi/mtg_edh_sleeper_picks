@@ -34,6 +34,17 @@ logger = logging.getLogger(__name__)
 _SUPERTYPES = {"Legendary", "Basic", "Snow", "World", "Ongoing", "Host", "Elite"}
 
 
+def normalize_name(name: str) -> str:
+    """
+    Canonical key for matching a card across EDHRec and Scryfall data:
+    case-folded, front face only (split on " // "), surrounding whitespace
+    stripped. Pure; used by both the EDHRec inclusion join and Slept On
+    exclusion so a card present in the EDHRec data cannot also appear as a
+    0%-inclusion Slept On pick.
+    """
+    return (name or "").split(" // ", 1)[0].strip().casefold()
+
+
 def card_features(card: dict) -> list[str]:
     """
     Namespaced feature list for a card: types, subtypes, and oracle tags.
@@ -170,10 +181,15 @@ def score_cards(
     inclusion-weighted log-lifts of the features it carries. Returns a new list
     sorted descending by score, keeping only positive-scoring cards (those that
     stack features the commander over-uses). Does not mutate input dicts.
+
+    ``edhrec_card_names`` is a set of names already passed through
+    ``normalize_name``; each color-pool card is normalized the same way before
+    the exclusion check so a card present in the EDHRec data can't leak into
+    Slept On.
     """
     scored = []
     for card in color_pool:
-        if card["name"] in edhrec_card_names:
+        if normalize_name(card["name"]) in edhrec_card_names:
             continue
         score = score_card(card, weights)
         if score > 0:
