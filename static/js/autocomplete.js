@@ -12,8 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let matches = [];    // current filtered suggestions (<= MAX_RESULTS)
   let active = -1;     // index of the highlighted suggestion, or -1
 
-  // Fetch the commander-name list once (relative path resolves to the
-  // /commanders.json route live, or docs/commanders.json in the static export).
+  // Fetch the commander-name list once from the /commanders.json route
+  // (relative path resolves against the landing page).
   fetch('commanders.json')
     .then(resp => (resp.ok ? resp.json() : Promise.reject(resp.status)))
     .then(data => {
