@@ -32,10 +32,20 @@ def commanders_json():
 
 @app.route("/commander/<slug>")
 def commander(slug):
-    # 1. Fetch the commander page once: info + cards + inclusion index all come
-    #    from a single stable EDHRec request.
-    data = edhrec.get_commander_data(slug)
-    info = edhrec.commander_info_from_data(data) if data else None
+    # 0. Scope selectors (issue #19). A `tag` re-scopes AND re-scores Slept On;
+    #    `budget`/`bracket` are display-only scopes — they change which EDHRec
+    #    cards are shown but leave the Buzzword Scores anchored to the no-tag
+    #    baseline (see the separate scoring view below).
+    tag = request.args.get("tag", "")
+    budget = request.args.get("budget", "")
+    bracket = request.args.get("bracket", "")
+
+    # 1. Display view: the fully-composed scope drives the EDHRec tab, featured
+    #    rows, the inclusion cross-ref, and the Slept On exclusion set.
+    display_data = edhrec.get_commander_data(
+        slug, tag=tag, budget=budget, bracket=bracket
+    )
+    info = edhrec.commander_info_from_data(display_data) if display_data else None
     if not info:
         return (
             render_template(
@@ -44,26 +54,48 @@ def commander(slug):
             404,
         )
 
-    # 2. Type-category recommendation list + the broad inclusion index.
-    edhrec_cards = edhrec.cards_from_data(data)
+    # 2. Type-category recommendation list + the broad inclusion index + theme
+    #    options, all from the display view.
+    edhrec_cards = edhrec.cards_from_data(display_data)
     if not edhrec_cards:
         return (
             render_template("error.html", message=f"No card data found for '{slug}'."),
             404,
         )
-    incl_index = edhrec.inclusion_index_from_data(data)
+    incl_index = edhrec.inclusion_index_from_data(display_data)
+    available_tags = edhrec.available_tags_from_data(display_data)
 
     # 2b. Display-only featured rows (New / High Synergy / Top) shown atop the
     #     EDHRec tab. These are NOT added to edhrec_cards or the scoring set.
-    featured = edhrec.featured_sections_from_data(data)
+    featured = edhrec.featured_sections_from_data(display_data)
     featured_cards = [c for sec in featured for c in sec["cards"]]
 
-    # 3. Enrich EDHRec + featured cards with Scryfall data from the local bulk
+    # 2c. Scoring view: only a tag recomputes feature weights. Budget/bracket
+    #     keep scores fixed to the base (no-tag) baseline, so resolve a separate
+    #     scoring view that ignores them. When neither applies, the display view
+    #     IS the scoring view (reuse it to avoid a second fetch + re-enrichment).
+    if tag:
+        scoring_data = edhrec.get_commander_data(slug, tag=tag)
+    elif budget or bracket:
+        scoring_data = edhrec.get_commander_data(slug)
+    else:
+        scoring_data = display_data
+    if scoring_data is display_data:
+        scoring_cards = edhrec_cards
+    else:
+        scoring_cards = edhrec.cards_from_data(scoring_data)
+
+    # 3. Enrich display + scoring cards with Scryfall data from the local bulk
     #    store in one collection call.
     scryfall.warm_up()
     names = [c["name"] for c in edhrec_cards] + [c["name"] for c in featured_cards]
+    if scoring_cards is not edhrec_cards:
+        names += [c["name"] for c in scoring_cards]
     card_details = scryfall.get_cards_collection(names)
-    for card in edhrec_cards + featured_cards:
+    enrich_targets = edhrec_cards + featured_cards
+    if scoring_cards is not edhrec_cards:
+        enrich_targets = enrich_targets + scoring_cards
+    for card in enrich_targets:
         card.update(card_details.get(card["name"], scryfall._empty_card_details()))
 
     # 4. Fetch all EDH-legal cards in the commander's color identity
@@ -86,7 +118,9 @@ def commander(slug):
     #    edhrec_names (normalized) drives that badge.
     edhrec_names = {analysis.normalize_name(c["name"]) for c in edhrec_cards}
     exclude_names = {analysis.normalize_name(info["name"])}
-    feature_stats = analysis.compute_feature_stats(edhrec_cards)
+    # Weights come strictly from the scoring view (tag-only or base) so that
+    # budget/bracket never move scores; only a tag rescopes the feature weights.
+    feature_stats = analysis.compute_feature_stats(scoring_cards)
     weights = {s["feature"]: s["weight"] for s in feature_stats}
     slept_on = analysis.score_cards(color_pool, weights, exclude_names)[
         :SLEPT_ON_RENDER_CAP
@@ -122,6 +156,12 @@ def commander(slug):
         slept_on=slept_on,
         feature_stats=feature_stats,
         feature_weights=weights,
+        selected_tag=tag,
+        selected_budget=budget,
+        selected_bracket=bracket,
+        available_tags=available_tags,
+        budget_options=edhrec.BUDGET_OPTIONS,
+        bracket_options=edhrec.BRACKET_OPTIONS,
     )
 
 
