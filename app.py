@@ -72,14 +72,16 @@ def commander(slug):
             card["edhrec_synergy"] = hit["synergy"]
 
     # 5. Score color pool with feature-lift model (Ferrone 2026).
-    #    Exclude the EDHRec recommendations AND the commander itself (it sits in
-    #    its own color pool but is never a "slept on" pick). Names are normalized
-    #    so a card present in the EDHRec data can't leak in at 0%.
+    #    Only the commander itself is excluded (it sits in its own color pool but
+    #    is never a "slept on" pick). EDHRec recommendations are NOT excluded:
+    #    low-inclusion ones can surface here, gated by the inclusion-cap slider
+    #    rather than a hard cut, and are flagged with an "in EDHRec list" badge.
+    #    edhrec_names (normalized) drives that badge.
     edhrec_names = {analysis.normalize_name(c["name"]) for c in edhrec_cards}
-    edhrec_names.add(analysis.normalize_name(info["name"]))
+    exclude_names = {analysis.normalize_name(info["name"])}
     feature_stats = analysis.compute_feature_stats(edhrec_cards)
     weights = {s["feature"]: s["weight"] for s in feature_stats}
-    slept_on = analysis.score_cards(color_pool, weights, edhrec_names)[
+    slept_on = analysis.score_cards(color_pool, weights, exclude_names)[
         :SLEPT_ON_RENDER_CAP
     ]
 
@@ -92,8 +94,11 @@ def commander(slug):
 
     # Surface each card's feature list so the Diagnostics toggles can re-score it
     # client-side without a round trip. weights -> feature_weights for the same.
+    # in_edhrec flags picks that are actually EDHRec recommendations (surfaced
+    # only because their inclusion is under the cap) so the template can badge them.
     for c in slept_on:
         c["features"] = analysis.card_features(c)
+        c["in_edhrec"] = analysis.normalize_name(c["name"]) in edhrec_names
 
     return render_template(
         "commander.html",

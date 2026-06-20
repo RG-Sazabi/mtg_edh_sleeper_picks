@@ -174,22 +174,25 @@ def score_card(card: dict, weights: dict[str, float]) -> float:
 def score_cards(
     color_pool: list[dict],
     weights: dict[str, float],
-    edhrec_card_names: set[str],
+    exclude_names: set[str],
 ) -> list[dict]:
     """
-    Score each color-pool card not already in the EDHRec list as the sum of the
-    inclusion-weighted log-lifts of the features it carries. Returns a new list
-    sorted descending by score, keeping only positive-scoring cards (those that
-    stack features the commander over-uses). Does not mutate input dicts.
+    Score each color-pool card as the sum of the inclusion-weighted log-lifts of
+    the features it carries. Returns a new list sorted descending by score,
+    keeping only positive-scoring cards (those that stack features the commander
+    over-uses). Does not mutate input dicts.
 
-    ``edhrec_card_names`` is a set of names already passed through
-    ``normalize_name``; each color-pool card is normalized the same way before
-    the exclusion check so a card present in the EDHRec data can't leak into
-    Slept On.
+    ``exclude_names`` is a set of names already passed through ``normalize_name``
+    (e.g. the commander itself, which sits in its own color pool but is never a
+    pick); each color-pool card is normalized the same way before the check.
+    EDHRec-recommended cards are intentionally NOT excluded here — they stay in
+    the candidate set so low-inclusion recommendations can surface as Slept On
+    picks (flagged "in EDHRec list" by the route); the inclusion-cap filter is
+    what drops the high-inclusion ones.
     """
     scored = []
     for card in color_pool:
-        if normalize_name(card["name"]) in edhrec_card_names:
+        if normalize_name(card["name"]) in exclude_names:
             continue
         score = score_card(card, weights)
         if score > 0:

@@ -359,6 +359,20 @@ nav.tabs {
   color: #999;
 }
 
+/* "In EDHRec list" badge — a Slept On pick that's actually a recommended card
+   (shown only because its inclusion is under the cap), so not a true sleeper. */
+.card-info .edhrec-badge {
+  align-self: flex-start;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #f0d9a0;
+  background: #5a4320;
+  padding: 0.08rem 0.35rem;
+  border-radius: 0.25rem;
+}
+
 /* ── Hidden state (toggled by filters.js) ── */
 .card-item.hidden { display: none; }
 

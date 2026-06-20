@@ -36,6 +36,7 @@
       <img src="{{ card.image_uri }}" alt="{{ card.name }}" loading="lazy">
       <div class="card-info">
         <strong>{{ card.name }}</strong>
+        {% if card.in_edhrec %}<span class="edhrec-badge" title="This card is in the EDHRec recommendation list — surfaced here only because its inclusion is under the cap, so it isn't a true sleeper.">In EDHRec list</span>{% endif %}
         <span class="js-score">Score: {{ card.buzzword_score | round(3) }}</span>
         <span>Inclusion: {{ (card.edhrec_inclusion * 100) | round(1) }}%</span>
         <span>Price: {% if card.price_usd %}${{ "%.2f" | format(card.price_usd) }}{% else %}N/A{% endif %}</span>
