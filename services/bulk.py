@@ -69,6 +69,8 @@ _cards: list[dict] = []
 _by_name: dict[str, dict] = {}
 _by_oracle_id: dict[str, dict] = {}
 _loaded = False
+# Memoized sorted list of front-face commander names; rebuilt when indices reload.
+_commander_names: list[str] | None = None
 
 
 def _bulk_path(kind: str) -> str:
@@ -275,7 +277,7 @@ def _neg(released: str) -> str:
 
 def ensure_loaded() -> None:
     """Download (if stale) and build all in-memory indices. Idempotent per process."""
-    global _loaded
+    global _loaded, _commander_names
     if _loaded:
         return
     cards_path = _ensure_fresh("default_cards")
@@ -284,6 +286,8 @@ def ensure_loaded() -> None:
         _build_otag_index(tags_path)
     if cards_path:
         _build_card_index(cards_path)
+    # Indices were (re)built; drop any cached derived view so it rebuilds on demand.
+    _commander_names = None
     _loaded = True
 
 
@@ -315,3 +319,20 @@ def color_identity_pool(color_identity: list[str]) -> list[dict]:
     ]
     pool.sort(key=lambda r: (r["edhrec_rank"] is None, r["edhrec_rank"] or 0))
     return pool
+
+
+def commander_names() -> list[str]:
+    """
+    Sorted, deduped list of legal-commander names (front face only) for the
+    search-bar autocomplete. Built once per process and memoized; pure in-memory.
+    """
+    global _commander_names
+    ensure_loaded()
+    if _commander_names is None:
+        names = {
+            rec["name"].split(" // ", 1)[0]
+            for rec in _cards
+            if rec["can_be_commander"] and rec["name"]
+        }
+        _commander_names = sorted(names, key=str.casefold)
+    return _commander_names
