@@ -53,6 +53,7 @@ def get_commander_cards(commander_name: str) -> list[dict]:
                     "edhrec_synergy": float(card.get("synergy", 0.0)),
                     "edhrec_inclusion": edhrec_inclusion,
                     "otags": [],
+                    "type_line": "",
                     "price_usd": None,
                     "rarity": "",
                     "image_uri": "",

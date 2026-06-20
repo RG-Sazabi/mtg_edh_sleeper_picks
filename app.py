@@ -7,6 +7,11 @@ from services import edhrec, scryfall, analysis
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
+# The color pool is now unbounded (whole color identity), but the N slider tops
+# out at 100; cap the rendered Slept On list so 5-color commanders don't emit
+# thousands of DOM nodes the user can never scroll to.
+SLEPT_ON_RENDER_CAP = 200
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -22,15 +27,23 @@ def commander(slug):
     # 1. Fetch commander info (color identity, display name)
     info = edhrec.get_commander_info(slug)
     if not info:
-        return render_template("error.html", message=f"Commander '{slug}' not found on EDHRec."), 404
+        return (
+            render_template(
+                "error.html", message=f"Commander '{slug}' not found on EDHRec."
+            ),
+            404,
+        )
 
     # 2. Fetch EDHRec recommended cards
     edhrec_cards = edhrec.get_commander_cards(slug)
     if not edhrec_cards:
-        return render_template("error.html", message=f"No card data found for '{slug}'."), 404
+        return (
+            render_template("error.html", message=f"No card data found for '{slug}'."),
+            404,
+        )
 
-    # 3. Enrich EDHRec cards with Scryfall data in one batch request
-    scryfall._load_otag_index()
+    # 3. Enrich EDHRec cards with Scryfall data from the local bulk store
+    scryfall.warm_up()
     card_details = scryfall.get_cards_collection([c["name"] for c in edhrec_cards])
     for card in edhrec_cards:
         card.update(card_details.get(card["name"], scryfall._empty_card_details()))
@@ -38,16 +51,23 @@ def commander(slug):
     # 4. Fetch all EDH-legal cards in the commander's color identity
     color_pool = scryfall.get_color_identity_pool(info["color_identity"])
 
-    # 5. Score color pool against EDHRec TF weights
+    # 5. Score color pool with feature-lift model (Ferrone 2026).
+    #    Exclude the EDHRec recommendations AND the commander itself (it sits in
+    #    its own color pool but is never a "slept on" pick).
     edhrec_names = {c["name"] for c in edhrec_cards}
-    tf = analysis.compute_tf(edhrec_cards)
-    slept_on = analysis.score_cards(color_pool, tf, edhrec_names)
+    edhrec_names.add(info["name"])
+    feature_stats = analysis.compute_feature_stats(edhrec_cards)
+    weights = {s["feature"]: s["weight"] for s in feature_stats}
+    slept_on = analysis.score_cards(color_pool, weights, edhrec_names)[
+        :SLEPT_ON_RENDER_CAP
+    ]
 
     return render_template(
         "commander.html",
         commander=info,
         edhrec_cards=edhrec_cards,
         slept_on=slept_on,
+        feature_stats=feature_stats,
     )
 
 

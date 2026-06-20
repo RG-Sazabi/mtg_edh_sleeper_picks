@@ -2,19 +2,58 @@
 {% block title %}{{ commander.name }} — MTG EDH Sleeper Picks{% endblock %}
 {% block content %}
 <h1>{{ commander.name }}</h1>
+<p class="copy-hint">Tip: click any card to copy its name to your clipboard.</p>
 
 <div id="controls">
   <label>Max price: $<input type="number" id="price-cap" min="0" step="0.01" placeholder="any"></label>
   <label><input type="checkbox" id="pauper-toggle"> Pauper only (commons)</label>
 </div>
 
-<section id="edhrec-section">
+<nav class="tabs" id="tab-bar">
+  <button class="tab-btn active" data-tab="slept-on-section">Slept On</button>
+  <button class="tab-btn" data-tab="edhrec-section">EDHRec</button>
+  <button class="tab-btn" data-tab="diagnostics-section">Diagnostics</button>
+</nav>
+
+<section id="slept-on-section" class="tab-panel active">
+  <h2>Slept On</h2>
+  <p>Cards outside the EDHRec list with the highest functional overlap.</p>
+  <div id="slept-on-controls">
+    <label>Show top <input type="range" id="n-slider" min="1" max="100" value="50">
+      <span id="n-label">50</span> cards</label>
+    <label>Inclusion cap: <input type="range" id="inclusion-cap" min="0" max="100" value="10">
+      <span id="inclusion-label">10</span>%</label>
+  </div>
+  <div class="card-grid" id="slept-on-grid">
+    {% for card in slept_on %}
+    <div class="card-item"
+         data-name="{{ card.name }}"
+         data-price="{{ card.price_usd if card.price_usd is not none else 9999 }}"
+         data-rarity="{{ card.rarity }}"
+         data-inclusion="{{ (card.edhrec_inclusion * 100) | int }}"
+         data-score="{{ card.buzzword_score }}">
+      <img src="{{ card.image_uri }}" alt="{{ card.name }}" loading="lazy">
+      <div class="card-info">
+        <strong>{{ card.name }}</strong>
+        <span>Score: {{ card.buzzword_score | round(3) }}</span>
+        <span>Inclusion: {{ (card.edhrec_inclusion * 100) | round(1) }}%</span>
+        <span>Price: {% if card.price_usd %}${{ "%.2f" | format(card.price_usd) }}{% else %}N/A{% endif %}</span>
+        <span>{{ card.rarity | capitalize }}</span>
+        <span>Tags: {{ card.otags[:3] | join(", ") }}{% if card.otags | length > 3 %}…{% endif %}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section id="edhrec-section" class="tab-panel">
   <h2>EDHRec Recommendations</h2>
   {% for category, cat_cards in edhrec_cards | groupby("edhrec_category") %}
   <h3>{{ category }}</h3>
   <div class="card-grid">
     {% for card in cat_cards %}
     <div class="card-item"
+         data-name="{{ card.name }}"
          data-price="{{ card.price_usd if card.price_usd is not none else 9999 }}"
          data-rarity="{{ card.rarity }}"
          data-inclusion="{{ (card.edhrec_inclusion * 100) | int }}">
@@ -32,35 +71,40 @@
   {% endfor %}
 </section>
 
-<section id="slept-on-section">
-  <h2>Slept On</h2>
-  <p>Cards outside the EDHRec list with the highest functional overlap.</p>
-  <div id="slept-on-controls">
-    <label>Show top <input type="range" id="n-slider" min="1" max="100" value="50">
-      <span id="n-label">50</span> cards</label>
-    <label>Inclusion cap: <input type="range" id="inclusion-cap" min="0" max="100" value="10">
-      <span id="inclusion-label">10</span>%</label>
-  </div>
-  <div class="card-grid" id="slept-on-grid">
-    {% for card in slept_on %}
-    <div class="card-item"
-         data-price="{{ card.price_usd if card.price_usd is not none else 9999 }}"
-         data-rarity="{{ card.rarity }}"
-         data-inclusion="{{ (card.edhrec_inclusion * 100) | int }}"
-         data-score="{{ card.buzzword_score }}">
-      <img src="{{ card.image_uri }}" alt="{{ card.name }}" loading="lazy">
-      <div class="card-info">
-        <strong>{{ card.name }}</strong>
-        <span>Score: {{ card.buzzword_score | round(2) }}</span>
-        <span>Inclusion: {{ (card.edhrec_inclusion * 100) | round(1) }}%</span>
-        <span>Price: {% if card.price_usd %}${{ "%.2f" | format(card.price_usd) }}{% else %}N/A{% endif %}</span>
-        <span>{{ card.rarity | capitalize }}</span>
-        <span>Tags: {{ card.otags[:3] | join(", ") }}{% if card.otags | length > 3 %}…{% endif %}</span>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
+<section id="diagnostics-section" class="tab-panel">
+  <h2>Diagnostics — Feature Lifts</h2>
+  <p>
+    Every Slept On score is the sum of these per-feature weights. For each card
+    characteristic (type, subtype, or oracle tag), <strong>P(X)</strong> is how
+    often {{ commander.name }}'s decks run cards with it, <strong>P(base)</strong>
+    is the color-identity baseline, <strong>lift = log(P(X) / P(base))</strong>
+    measures over/under-representation, and <strong>weight = P(X) × lift</strong>
+    is the inclusion-weighted contribution actually added to a card's score.
+  </p>
+  <table class="diag-table">
+    <thead>
+      <tr>
+        <th>Kind</th><th>Characteristic</th><th>Cards</th>
+        <th>P(X)</th><th>P(base)</th><th>Lift</th><th>Weight</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in feature_stats %}
+      <tr class="weight-{{ 'pos' if s.weight > 0 else 'neg' }}">
+        <td><span class="kind kind-{{ s.kind }}">{{ s.kind }}</span></td>
+        <td>{{ s.name }}</td>
+        <td>{{ s.support }}</td>
+        <td>{{ (s.p_x * 100) | round(1) }}%</td>
+        <td>{{ (s.p_b * 100) | round(1) }}%</td>
+        <td>{{ s.lift | round(3) }}</td>
+        <td>{{ s.weight | round(4) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </section>
+
+<div id="copy-toast" role="status" aria-live="polite"></div>
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
