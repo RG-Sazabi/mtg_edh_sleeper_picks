@@ -62,12 +62,25 @@ def commander(slug):
         :SLEPT_ON_RENDER_CAP
     ]
 
+    # Score the EDHRec recommendations on the same scale so the EDHRec tab is
+    # directly comparable to Slept On. We do NOT re-rank them (they stay grouped
+    # by category); features power the client-side re-score on Diagnostics toggles.
+    for c in edhrec_cards:
+        c["features"] = analysis.card_features(c)
+        c["buzzword_score"] = analysis.score_card(c, weights)
+
+    # Surface each card's feature list so the Diagnostics toggles can re-score it
+    # client-side without a round trip. weights -> feature_weights for the same.
+    for c in slept_on:
+        c["features"] = analysis.card_features(c)
+
     return render_template(
         "commander.html",
         commander=info,
         edhrec_cards=edhrec_cards,
         slept_on=slept_on,
         feature_stats=feature_stats,
+        feature_weights=weights,
     )
 
 

@@ -59,6 +59,9 @@ The MVP is a Flask-based local web app with a static HTML export pathway for opt
   - Inclusion cap slider (0–100%, default 10%) — excludes cards already frequently used
 - [ ] **Tabbed layout:** Slept On / EDHRec / Diagnostics
 - [ ] **Diagnostics tab:** per-characteristic table showing support, P_X, P_base, lift, and weight — so the user can see exactly why cards score the way they do
+- [ ] **Diagnostics feature toggles:** exclude characteristics from scoring — a bulk toggle to drop all Type and Subtype features at once, plus a per-row toggle for any individual feature. Toggling **recomputes every card's score and re-ranks the Slept On list live, client-side** (no page reload)
+- [ ] **Score on EDHRec cards:** display the feature-lift score under each card in the EDHRec tab too (not just Slept On), and update it live when Diagnostics toggles change
+- [ ] **Search autocomplete:** as-you-type commander suggestions on the landing page, drawn **offline** from the local bulk store (legendary creatures + "can be your commander" cards only), so every suggestion resolves to a real commander page and it works in the static export
 - [ ] **Click-to-copy:** clicking any card copies its name to the clipboard (with a toast confirmation)
 - [ ] **Filters (both sections):**
   - Price cap input (hide cards above $X.XX)
@@ -123,6 +126,22 @@ As a deckbuilder, I want to click a card to copy its name to my clipboard, so th
 As a deckbuilder, I want a Diagnostics tab showing the lift and weight of each card characteristic, so that I understand which types/subtypes/oracle tags are driving the Slept On scores and can trust (or question) the results.
 *Example: I open Diagnostics for Atraxa and see `otag:synergy-proliferate` has a high weight, confirming the section is rewarding the deck's real theme.*
 
+**US-11: Mute Type & Subtype Features**
+As a deckbuilder, I want to toggle off all Type and Subtype features at once, so that the score reflects only oracle-tag (functional) overlap when card types and creature types are adding noise rather than signal.
+*Example: I flip "Ignore types & subtypes" off and the Slept On list re-ranks instantly — generic "Legendary Creature" stacking stops inflating scores, surfacing cards that share actual mechanics.*
+
+**US-12: Mute Individual Features**
+As a deckbuilder, I want to toggle off a single characteristic from the Diagnostics table, so that I can remove one misleading or irrelevant feature and immediately see how the recommendations change.
+*Example: I untoggle `otag:eponymous-planeswalker`, and planeswalker cards that were riding that one tag drop down the Slept On list as it re-sorts live.*
+
+**US-13: Score on EDHRec Cards**
+As a deckbuilder, I want to see our feature-lift score on the EDHRec recommended cards too, so that I can compare how the app rates already-popular staples against the Slept On picks on the same scale.
+*Example: In the EDHRec tab, "Tezzeret's Gambit" shows a Score of 0.84 right below its synergy/inclusion, and it updates when I mute features in Diagnostics.*
+
+**US-14: Search Autocomplete**
+As a deckbuilder, I want commander-name suggestions as I type in the search bar, so that I can find the exact commander quickly without misspelling it or guessing the slug.
+*Example: I type "atra" and a dropdown shows "Atraxa, Praetors' Voice" and "Atraxa, Grand Unifier"; I click one and land directly on its page.*
+
 ---
 
 ## 6. Core Architecture & Patterns
@@ -154,8 +173,9 @@ mtg_edh_sleeper_picks/
 ### Key Design Patterns
 - **Service layer:** All external API calls isolated in `services/`. Routes never call Scryfall or PyEDHRec directly.
 - **Pure analysis:** `services/analysis.py` functions take lists and dicts as input, return scored lists. Zero I/O.
-- **Client-side filtering:** Price cap, pauper toggle, and N slider operate on already-rendered HTML via `filters.js` — no server round-trip needed per filter change.
-- **In-memory cache:** Scryfall results cached in a module-level dict for the duration of a single request. No disk persistence.
+- **Client-side filtering AND re-scoring:** Price cap, pauper toggle, and N slider operate on already-rendered HTML via `filters.js` — no server round-trip. The Diagnostics feature toggles extend this: to recompute scores and re-rank live, the page embeds, as data, **each card's feature list** (`data-features`) and **the feature→weight table** (e.g. a JSON `<script>` block). `filters.js` re-sums `weight[f]` over each card's non-muted features, rewrites the score, re-sorts the grids, and re-applies the N/price/pauper filters. No server, so it also works in the static export.
+- **Offline autocomplete index:** The landing page is backed by a precomputed list of legal commander names (legendary creatures + "can be your commander" cards) derived once from the local bulk store. Served as a small JSON/JS asset the search box filters client-side — no per-keystroke network call, and it ships with the static export.
+- **Local bulk store:** Card data served from `services/bulk.py` (disk-cached `default_cards` + `oracle_tags`); see CLAUDE.md. A thin live `/cards/named` fallback covers names absent from the snapshot.
 
 ### Feature-Lift Scoring Algorithm (Ferrone, 2026)
 ```
@@ -231,6 +251,10 @@ The app is successful when: a user can search for any legal Commander, see all s
 - [ ] Inclusion cap slider updates Slept On list without page reload
 - [ ] Price cap hides cards above the threshold in both sections
 - [ ] Pauper toggle hides non-common cards in both sections
+- [ ] Feature-lift Score is visible per card in the EDHRec tab as well as Slept On
+- [ ] "Ignore types & subtypes" toggle re-ranks Slept On and updates all scores without a page reload
+- [ ] Muting an individual feature in Diagnostics re-ranks Slept On and updates all scores without a page reload
+- [ ] Search bar suggests matching commander names as the user types, with no per-keystroke network call
 - [ ] `export.py` produces valid static HTML in `/docs` that renders correctly when opened in a browser
 - [ ] Scryfall requests stay within rate limits (≤10 req/sec)
 
@@ -296,6 +320,21 @@ The app is successful when: a user can search for any legal Commander, see all s
 
 ---
 
+### Phase 5: Interactive Scoring & Search UX
+**Goal:** Make scoring inspectable/adjustable and the search faster to use, all client-side so the static export keeps working.
+
+**Deliverables:**
+- [ ] Embed per-card feature lists (`data-features`) and the feature→weight table (JSON) in `commander.html`
+- [ ] `filters.js`: Diagnostics bulk toggle "Ignore types & subtypes" + per-row feature toggles that mute features from the weight set
+- [ ] `filters.js`: live re-score (re-sum non-muted weights), rewrite each card's Score, re-sort both grids, and re-apply N/price/pauper/inclusion filters — no reload
+- [ ] Show the feature-lift Score on EDHRec-tab cards too; ensure it re-scores with the toggles
+- [ ] Offline commander autocomplete: build the commander-name list from the bulk store, ship it as a JS/JSON asset, wire a client-side dropdown on the landing page (and the static index)
+- [ ] `flake8 .` passes
+
+**Validation:** On the Atraxa page, muting all Type/Subtype features and an individual otag re-ranks the Slept On list instantly and updates EDHRec-card scores; the search box suggests commanders as you type, offline; all of the above still work when opened from `/docs` with no server.
+
+---
+
 ## 11. Risks & Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
@@ -317,4 +356,4 @@ The app is successful when: a user can search for any legal Commander, see all s
 - **Pre-built commander cache:** Export analysis for a curated list of commanders so GitHub Pages users get instant results without re-running locally.
 - **Price history:** Track price changes over time using Scryfall's bulk data download.
 - **Moxfield / Archidekt export:** One-click export of the Slept On list to a deck builder.
-- **Commander search autocomplete:** Use Scryfall's `/cards/autocomplete` endpoint for live suggestions as the user types.
+- **Saved diagnostics presets:** Remember a user's muted-feature set across commanders (e.g. "always ignore types & subtypes").
