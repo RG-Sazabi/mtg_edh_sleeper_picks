@@ -71,6 +71,8 @@ _by_oracle_id: dict[str, dict] = {}
 _loaded = False
 # Memoized sorted list of front-face commander names; rebuilt when indices reload.
 _commander_names: list[str] | None = None
+# Memoized {partner_kind -> sorted [front-face name]}; rebuilt when indices reload.
+_partner_pools: dict[str, list[str]] | None = None
 
 
 def _bulk_path(kind: str) -> str:
@@ -148,6 +150,35 @@ def _can_be_commander(card: dict) -> bool:
     return any("can be your commander" in t.lower() for t in texts)
 
 
+def _partner_kind(card: dict) -> str:
+    """
+    Classify a card's partner-pairing eligibility from its keywords, type line,
+    and face oracle texts. One of:
+      "partner"          — Partner / "Partner with X" (one shared pool per rules)
+      "friends_forever"  — Friends forever
+      "choose_background"— pairs with any Background
+      "background"       — a Background (pairs with any "choose a background")
+      ""                 — not partner-eligible
+    Mutually exclusive in practice; checked in priority order. Backgrounds are
+    detected by type line so they qualify even when not ``can_be_commander``.
+    """
+    kws = [k.lower() for k in (card.get("keywords") or [])]
+    type_line = card.get("type_line", "")
+    texts = " ".join(
+        [card.get("oracle_text", "")]
+        + [f.get("oracle_text", "") for f in card.get("card_faces") or []]
+    ).lower()
+    if any("friends forever" in k for k in kws) or "friends forever" in texts:
+        return "friends_forever"
+    if any("choose a background" in k for k in kws) or "choose a background" in texts:
+        return "choose_background"
+    if any(k.startswith("partner") for k in kws) or "\npartner" in ("\n" + texts):
+        return "partner"
+    if "Background" in type_line:
+        return "background"
+    return ""
+
+
 def _trim(card: dict) -> dict:
     price_raw = (card.get("prices") or {}).get("usd")
     return {
@@ -162,6 +193,7 @@ def _trim(card: dict) -> dict:
         "commander_legal": (card.get("legalities") or {}).get("commander") == "legal",
         "layout": card.get("layout", ""),
         "can_be_commander": _can_be_commander(card),
+        "partner_kind": _partner_kind(card),
     }
 
 
@@ -277,7 +309,7 @@ def _neg(released: str) -> str:
 
 def ensure_loaded() -> None:
     """Download (if stale) and build all in-memory indices. Idempotent per process."""
-    global _loaded, _commander_names
+    global _loaded, _commander_names, _partner_pools
     if _loaded:
         return
     cards_path = _ensure_fresh("default_cards")
@@ -288,6 +320,7 @@ def ensure_loaded() -> None:
         _build_card_index(cards_path)
     # Indices were (re)built; drop any cached derived view so it rebuilds on demand.
     _commander_names = None
+    _partner_pools = None
     _loaded = True
 
 
@@ -336,3 +369,59 @@ def commander_names() -> list[str]:
         }
         _commander_names = sorted(names, key=str.casefold)
     return _commander_names
+
+
+def _partner_pools_built() -> dict[str, list[str]]:
+    """
+    {partner_kind -> sorted front-face names}. Built once per process and
+    memoized. ``background`` cards are pooled by type regardless of
+    ``can_be_commander`` (they are only ever offered as the second pick); all
+    other kinds require ``commander_legal``.
+    """
+    global _partner_pools
+    ensure_loaded()
+    if _partner_pools is None:
+        pools: dict[str, set[str]] = defaultdict(set)
+        for rec in _cards:
+            kind = rec.get("partner_kind", "")
+            if not kind or not rec["name"]:
+                continue
+            front = rec["name"].split(" // ", 1)[0]
+            if kind == "background" or rec["commander_legal"]:
+                pools[kind].add(front)
+        _partner_pools = {
+            kind: sorted(names, key=str.casefold) for kind, names in pools.items()
+        }
+    return _partner_pools
+
+
+def legal_partners_for(name: str) -> list[str]:
+    """
+    Sorted legal partner names for a card, per its ``partner_kind``:
+      partner -> other partners; friends_forever -> other friends_forever;
+      choose_background -> all Backgrounds; background -> all choose-a-background
+      commanders; otherwise []. The card itself is never in its own pool.
+    """
+    rec = card_record(name)
+    if not rec:
+        return []
+    kind = rec.get("partner_kind", "")
+    front = rec["name"].split(" // ", 1)[0]
+    pools = _partner_pools_built()
+    pool_key = {
+        "partner": "partner",
+        "friends_forever": "friends_forever",
+        "choose_background": "background",
+        "background": "choose_background",
+    }.get(kind)
+    if not pool_key:
+        return []
+    return [n for n in pools.get(pool_key, []) if n != front]
+
+
+def partner_eligibility(name: str) -> dict:
+    """``{'eligible': bool, 'kind': str, 'partners': [name, ...]}`` for a card."""
+    rec = card_record(name)
+    kind = rec.get("partner_kind", "") if rec else ""
+    partners = legal_partners_for(name)
+    return {"eligible": bool(partners), "kind": kind, "partners": partners}
