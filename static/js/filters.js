@@ -49,33 +49,50 @@ document.addEventListener('DOMContentLoaded', () => {
     return { kind: f.slice(0, i), name: f.slice(i + 1) };
   }
 
-  // Inject one empty tooltip node into each scored card's .card-info (in flow,
-  // so .card-item { overflow: hidden } won't clip it); filled by updateTooltips.
-  document.querySelectorAll('.card-item[data-features]').forEach(card => {
-    const info = card.querySelector('.card-info');
-    if (info && !info.querySelector('.score-tooltip')) {
-      const tip = document.createElement('div');
-      tip.className = 'score-tooltip';
-      info.appendChild(tip);
-    }
-  });
+  // A single floating tooltip, appended to <body> so it escapes each card's
+  // overflow:hidden and hover transform (either of which would clip or contain
+  // an in-card overlay). Built fresh on each hover, so it always reflects the
+  // current muted set without needing a rescore hook.
+  const scoreTooltip = document.createElement('div');
+  scoreTooltip.className = 'score-tooltip';
+  document.body.appendChild(scoreTooltip);
 
-  // Fill each card's tooltip with its current top contributors (signed,
-  // sorted by magnitude). Re-run on every rescore so mutes stay in lockstep.
-  function updateTooltips() {
-    document.querySelectorAll('.card-item[data-features]').forEach(card => {
-      const tip = card.querySelector('.score-tooltip');
-      if (!tip) return;
-      const rows = topContributors(card);
-      tip.innerHTML = rows.length
-        ? '<strong>Top contributors</strong>' + rows.map(([f, w]) => {
-            const { kind, name } = featureLabel(f);
-            return `<span class="tip-row"><span class="kind kind-${kind}">${kind}</span>`
-                 + `${name}<span class="tip-val">${w >= 0 ? '+' : ''}${w.toFixed(3)}</span></span>`;
-          }).join('')
-        : '<em>No positive contributors</em>';
-    });
+  function tooltipHTML(card) {
+    const rows = topContributors(card);
+    if (!rows.length) return '<em>No positive contributors</em>';
+    return '<strong>Top contributors</strong>' + rows.map(([f, w]) => {
+      const { kind, name } = featureLabel(f);
+      return `<span class="tip-row"><span class="kind kind-${kind}">${kind}</span>`
+           + `${name}<span class="tip-val">${w >= 0 ? '+' : ''}${w.toFixed(3)}</span></span>`;
+    }).join('');
   }
+
+  // Float the tooltip to the right of the hovered card, flipping to the left if
+  // it would overflow the viewport, and clamping vertically so it stays on screen.
+  function positionTooltip(card) {
+    const r = card.getBoundingClientRect();
+    const gap = 8;
+    let left = r.right + gap;
+    if (left + scoreTooltip.offsetWidth > window.innerWidth - gap) {
+      left = r.left - gap - scoreTooltip.offsetWidth;
+    }
+    if (left < gap) left = gap;
+    let top = Math.min(r.top, window.innerHeight - gap - scoreTooltip.offsetHeight);
+    if (top < gap) top = gap;
+    scoreTooltip.style.left = left + 'px';
+    scoreTooltip.style.top = top + 'px';
+  }
+
+  document.querySelectorAll('.card-item[data-features]').forEach(card => {
+    card.addEventListener('mouseenter', () => {
+      scoreTooltip.innerHTML = tooltipHTML(card);
+      scoreTooltip.classList.add('visible');  // display:block before measuring
+      positionTooltip(card);
+    });
+    card.addEventListener('mouseleave', () => {
+      scoreTooltip.classList.remove('visible');
+    });
+  });
 
   // Recompute every feature-carrying card's score, updating both the data-score
   // attribute and the visible .js-score span (toFixed(3) matches Jinja round(3)).
@@ -158,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
     recomputeScores();
     reorderSleptOn();
     applyFilters();
-    updateTooltips();
   }
 
   // Bulk: mute/unmute every feature of one kind (type:* or sub:*), syncing the
@@ -190,7 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Apply defaults on page load
   applyFilters();
-  updateTooltips();
 
   // ── Tabs: switch the visible panel ──
   // The active tab is remembered in sessionStorage so it survives the full page
