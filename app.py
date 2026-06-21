@@ -17,8 +17,15 @@ SLEPT_ON_RENDER_CAP = 200
 def index():
     if request.method == "POST":
         name = request.form.get("commander", "").strip()
+        partner = request.form.get("partner", "").strip()
         if name:
-            return redirect(url_for("commander", slug=edhrec.slugify(name)))
+            # A partner pairing routes through one combined EDHRec slug; the whole
+            # scoring/Slept On pipeline then treats it as a single commander.
+            if partner:
+                slug = edhrec.resolve_pairing_slug(name, partner)
+            else:
+                slug = edhrec.slugify(name)
+            return redirect(url_for("commander", slug=slug))
     return render_template("index.html")
 
 
@@ -28,6 +35,15 @@ def commanders_json():
     # server warms the bulk store (~30s); the page renders without waiting on it.
     scryfall.warm_up()
     return jsonify(bulk.commander_names())
+
+
+@app.route("/partners")
+def partners():
+    # Partner-eligibility + legal-pairing pool for the second autocomplete.
+    # {'eligible': bool, 'kind': str, 'partners': [name, ...]}.
+    scryfall.warm_up()
+    name = request.args.get("name", "").strip()
+    return jsonify(bulk.partner_eligibility(name))
 
 
 @app.route("/commander/<slug>")
@@ -46,6 +62,7 @@ def commander(slug):
         slug, tag=tag, budget=budget, bracket=bracket
     )
     info = edhrec.commander_info_from_data(display_data) if display_data else None
+    commanders = edhrec.commanders_from_data(display_data) if display_data else []
     if not info:
         return (
             render_template(
@@ -117,7 +134,11 @@ def commander(slug):
     #    rather than a hard cut, and are flagged with an "in EDHRec list" badge.
     #    edhrec_names (normalized) drives that badge.
     edhrec_names = {analysis.normalize_name(c["name"]) for c in edhrec_cards}
+    # Exclude every commander on the page (both halves of a partner pairing) from
+    # its own Slept On list, not just the combined card's display name.
     exclude_names = {analysis.normalize_name(info["name"])}
+    for cm in commanders:
+        exclude_names.add(analysis.normalize_name(cm["name"]))
     # Weights come strictly from the scoring view (tag-only or base) so that
     # budget/bracket never move scores; only a tag rescopes the feature weights.
     feature_stats = analysis.compute_feature_stats(scoring_cards)
@@ -151,6 +172,7 @@ def commander(slug):
     return render_template(
         "commander.html",
         commander=info,
+        commanders=commanders,
         edhrec_cards=edhrec_cards,
         featured=featured,
         slept_on=slept_on,
