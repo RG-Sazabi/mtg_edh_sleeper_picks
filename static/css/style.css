@@ -389,6 +389,26 @@ nav.tabs {
   border-radius: 0.25rem;
 }
 
+/* ── Score breakdown tooltip (hover a card) ── */
+.score-tooltip {
+  display: none;
+  margin-top: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  background: #0f3460;
+  border: 1px solid #16213e;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+.card-item:hover .score-tooltip { display: block; }
+.score-tooltip strong { display: block; margin-bottom: 0.2rem; color: #aac4e8; }
+.score-tooltip .tip-row { display: flex; align-items: center; gap: 0.3rem; }
+.score-tooltip .tip-val {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: #e0e0e0;
+}
+
 /* ── Hidden state (toggled by filters.js) ── */
 .card-item.hidden { display: none; }
 
