@@ -32,6 +32,51 @@ document.addEventListener('DOMContentLoaded', () => {
   );
   const muted = new Set();
 
+  // Mirrors services/analysis.score_breakdown: top contributors to a card's
+  // displayed score. Muted features contribute 0 and are dropped, so the list
+  // reconciles with the (post-mute) score shown in .js-score.
+  const TOOLTIP_TOP_N = 5;
+  function topContributors(card, n = TOOLTIP_TOP_N) {
+    const feats = card.dataset.features ? card.dataset.features.split('|') : [];
+    return feats
+      .map(f => [f, muted.has(f) ? 0 : (WEIGHTS[f] || 0)])
+      .filter(([, w]) => w !== 0)
+      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+      .slice(0, n);
+  }
+  function featureLabel(f) {            // "otag:ramp" -> {kind:"otag", name:"ramp"}
+    const i = f.indexOf(':');
+    return { kind: f.slice(0, i), name: f.slice(i + 1) };
+  }
+
+  // Inject one empty tooltip node into each scored card's .card-info (in flow,
+  // so .card-item { overflow: hidden } won't clip it); filled by updateTooltips.
+  document.querySelectorAll('.card-item[data-features]').forEach(card => {
+    const info = card.querySelector('.card-info');
+    if (info && !info.querySelector('.score-tooltip')) {
+      const tip = document.createElement('div');
+      tip.className = 'score-tooltip';
+      info.appendChild(tip);
+    }
+  });
+
+  // Fill each card's tooltip with its current top contributors (signed,
+  // sorted by magnitude). Re-run on every rescore so mutes stay in lockstep.
+  function updateTooltips() {
+    document.querySelectorAll('.card-item[data-features]').forEach(card => {
+      const tip = card.querySelector('.score-tooltip');
+      if (!tip) return;
+      const rows = topContributors(card);
+      tip.innerHTML = rows.length
+        ? '<strong>Top contributors</strong>' + rows.map(([f, w]) => {
+            const { kind, name } = featureLabel(f);
+            return `<span class="tip-row"><span class="kind kind-${kind}">${kind}</span>`
+                 + `${name}<span class="tip-val">${w >= 0 ? '+' : ''}${w.toFixed(3)}</span></span>`;
+          }).join('')
+        : '<em>No positive contributors</em>';
+    });
+  }
+
   // Recompute every feature-carrying card's score, updating both the data-score
   // attribute and the visible .js-score span (toFixed(3) matches Jinja round(3)).
   function recomputeScores() {
@@ -113,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     recomputeScores();
     reorderSleptOn();
     applyFilters();
+    updateTooltips();
   }
 
   // Bulk: mute/unmute every feature of one kind (type:* or sub:*), syncing the
@@ -144,6 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Apply defaults on page load
   applyFilters();
+  updateTooltips();
 
   // ── Tabs: switch the visible panel ──
   // The active tab is remembered in sessionStorage so it survives the full page
