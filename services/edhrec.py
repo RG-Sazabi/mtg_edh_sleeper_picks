@@ -135,6 +135,43 @@ def commander_info_from_data(data: dict) -> dict | None:
     }
 
 
+def commanders_from_data(data: dict) -> list[dict]:
+    """
+    Pure: one ``{"name", "image_uri"}`` per commander on the page. A single
+    commander yields 1 entry; a partner pairing yields 2, read from the combined
+    card's ``names`` / ``image_uris`` lists (each aligned by index). Falls back to
+    the scalar ``name`` when ``names`` is absent.
+    """
+    if not data:
+        return []
+    card = data.get("card")
+    if not card:
+        return []
+    names = card.get("names") or [card.get("name", "")]
+    image_uris = card.get("image_uris", [])
+    commanders = []
+    for i, name in enumerate(names):
+        image_uri = ""
+        if i < len(image_uris) and isinstance(image_uris[i], dict):
+            image_uri = image_uris[i].get("normal", "")
+        commanders.append({"name": name, "image_uri": image_uri})
+    return commanders
+
+
+def resolve_pairing_slug(name_a: str, name_b: str) -> str:
+    """
+    Build the combined EDHRec slug for a two-commander pairing. EDHRec's pairing
+    ordering isn't always alphabetical (notably backgrounds), and only one
+    ordering returns a usable container, so try both and keep the first that
+    yields valid data. Falls back to ``<a>-<b>`` if neither fetch succeeds.
+    """
+    sa, sb = slugify(name_a), slugify(name_b)
+    for combo in (f"{sa}-{sb}", f"{sb}-{sa}"):
+        if get_commander_data(combo):
+            return combo
+    return f"{sa}-{sb}"
+
+
 def _card_from_cardview(cv: dict, category: str) -> dict:
     """Pure: build a per-card scoring dict from an EDHRec cardview."""
     potential = cv.get("potential_decks") or 0
