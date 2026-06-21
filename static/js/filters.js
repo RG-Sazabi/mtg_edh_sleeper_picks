@@ -102,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
   inclusionSlider.addEventListener('input', applyFilters);
 
   // ── Diagnostics feature toggles: mute features and re-score/re-rank live ──
-  const muteTypesSubs = document.getElementById('mute-types-subs');
   const featureToggles = document.querySelectorAll('.feature-toggle');
 
   function setMuted(feature, isMuted, row) {
@@ -116,20 +115,24 @@ document.addEventListener('DOMContentLoaded', () => {
     applyFilters();
   }
 
-  // Bulk: mute/unmute every type:* and sub:* feature, syncing the row checkboxes.
-  if (muteTypesSubs) {
-    muteTypesSubs.addEventListener('change', () => {
-      const mute = muteTypesSubs.checked;
+  // Bulk: mute/unmute every feature of one kind (type:* or sub:*), syncing the
+  // per-row checkboxes, then re-score. Each kind toggles independently.
+  function bindKindMute(checkboxId, prefix) {
+    const box = document.getElementById(checkboxId);
+    if (!box) return;
+    box.addEventListener('change', () => {
+      const mute = box.checked;
       featureToggles.forEach(cb => {
-        const f = cb.dataset.feature;
-        if (f.startsWith('type:') || f.startsWith('sub:')) {
+        if (cb.dataset.feature.startsWith(prefix)) {
           cb.checked = !mute;
-          setMuted(f, mute, cb.closest('tr'));
+          setMuted(cb.dataset.feature, mute, cb.closest('tr'));
         }
       });
       rescore();
     });
   }
+  bindKindMute('mute-types', 'type:');
+  bindKindMute('mute-subs', 'sub:');
 
   // Per-row: mute/unmute a single feature (checked = on/contributing).
   featureToggles.forEach(cb => {
