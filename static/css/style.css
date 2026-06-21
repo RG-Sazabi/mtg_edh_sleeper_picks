@@ -389,6 +389,33 @@ nav.tabs {
   border-radius: 0.25rem;
 }
 
+/* ── Score breakdown tooltip (floats beside the hovered card) ──
+   Appended to <body> and positioned via JS so it escapes the card's
+   overflow:hidden + hover transform; shown by toggling .visible. */
+.score-tooltip {
+  display: none;
+  position: fixed;
+  z-index: 200;
+  max-width: 240px;
+  pointer-events: none;
+  padding: 0.4rem 0.5rem;
+  background: #0f3460;
+  border: 1px solid #16213e;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #e0e0e0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+.score-tooltip.visible { display: block; }
+.score-tooltip strong { display: block; margin-bottom: 0.2rem; color: #aac4e8; }
+.score-tooltip .tip-row { display: flex; align-items: center; gap: 0.3rem; }
+.score-tooltip .tip-val {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: #e0e0e0;
+}
+
 /* ── Hidden state (toggled by filters.js) ── */
 .card-item.hidden { display: none; }
 

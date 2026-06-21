@@ -162,13 +162,31 @@ def compute_feature_stats(
     return stats
 
 
+def score_breakdown(
+    card: dict,
+    weights: dict[str, float],
+    top_n: int | None = None,
+) -> list[tuple[str, float]]:
+    """
+    The per-feature contributions behind a card's Buzzword Score: a list of
+    ``(feature, contribution)`` for each feature the card carries that has a
+    weight, sorted by absolute contribution descending. ``top_n`` truncates to
+    the strongest contributors (None = all). Single source of truth shared with
+    ``score_card`` and mirrored by ``static/js/filters.js`` for the hover
+    tooltip. Pure; no mutation.
+    """
+    contribs = [(f, weights[f]) for f in card_features(card) if f in weights]
+    contribs.sort(key=lambda c: abs(c[1]), reverse=True)
+    return contribs[:top_n] if top_n else contribs
+
+
 def score_card(card: dict, weights: dict[str, float]) -> float:
     """
     Feature-lift score for a single card: the sum of the inclusion-weighted
     log-lifts (``weights``) of the features it carries. Features absent from
     ``weights`` (below ``min_support``) contribute nothing. Pure; no mutation.
     """
-    return sum(weights[f] for f in card_features(card) if f in weights)
+    return sum(c for _, c in score_breakdown(card, weights))
 
 
 def score_cards(
