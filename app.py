@@ -12,6 +12,9 @@ logging.basicConfig(level=logging.INFO)
 # thousands of DOM nodes the user can never scroll to.
 SLEPT_ON_RENDER_CAP = 200
 
+# The single overall Slept On section shows the N highest-scoring picks.
+TOP_OVERALL_N = 10
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -169,6 +172,13 @@ def commander(slug):
         c["features"] = analysis.card_features(c)
         c["in_edhrec"] = analysis.normalize_name(c["name"]) in edhrec_names
 
+    # Presentation-only split (issue #31): one overall Top 10 plus the seven
+    # per-type sections. partition_by_type buckets the same enriched dicts (by
+    # reference) preserving score-desc order, so a card can appear in Top 10 and
+    # in every type section whose type it carries — no re-enrichment, no re-sort.
+    top_overall = slept_on[:TOP_OVERALL_N]
+    type_sections = analysis.partition_by_type(slept_on)
+
     return render_template(
         "commander.html",
         commander=info,
@@ -176,6 +186,8 @@ def commander(slug):
         edhrec_cards=edhrec_cards,
         featured=featured,
         slept_on=slept_on,
+        top_overall=top_overall,
+        type_sections=type_sections,
         feature_stats=feature_stats,
         feature_weights=weights,
         selected_tag=tag,
