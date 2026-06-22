@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_card.html" import card_item %}
+{% from "_card.html" import card_item, slept_on_card %}
 {% block title %}{{ commander.name }} — MTG EDH Sleeper Picks{% endblock %}
 {% block content %}
 {% set header_commanders = commanders if (commanders is defined and commanders) else [commander] %}
@@ -55,28 +55,16 @@
     <label>Inclusion cap: <input type="range" id="inclusion-cap" min="0" max="100" value="10">
       <span id="inclusion-label">10</span>%</label>
   </div>
-  <div class="card-grid" id="slept-on-grid">
-    {% for card in slept_on %}
-    <div class="card-item"
-         data-name="{{ card.name }}"
-         data-price="{{ card.price_usd if card.price_usd is not none else 9999 }}"
-         data-rarity="{{ card.rarity }}"
-         data-inclusion="{{ (card.edhrec_inclusion * 100) | int }}"
-         data-score="{{ card.buzzword_score }}"
-         data-features="{{ card.features | join('|') }}">
-      <img src="{{ card.image_uri }}" alt="{{ card.name }}" loading="lazy">
-      <div class="card-info">
-        <strong>{{ card.name }}</strong>
-        {% if card.in_edhrec %}<span class="edhrec-badge" title="This card is in the EDHRec recommendation list — surfaced here only because its inclusion is under the cap, so it isn't a true sleeper.">In EDHRec list</span>{% endif %}
-        <span class="js-score">Score: {{ card.buzzword_score | round(3) }}</span>
-        <span>Inclusion: {{ (card.edhrec_inclusion * 100) | round(1) }}%</span>
-        <span>Price: {% if card.price_usd %}${{ "%.2f" | format(card.price_usd) }}{% else %}N/A{% endif %}</span>
-        <span>{{ card.rarity | capitalize }}</span>
-        <span>Tags: {{ card.otags[:3] | join(", ") }}{% if card.otags | length > 3 %}…{% endif %}</span>
-      </div>
-    </div>
-    {% endfor %}
+  <h3>Top 10</h3>
+  <div class="card-grid slept-on-grid" id="slept-on-grid">
+    {% for card in top_overall %}{{ slept_on_card(card) }}{% endfor %}
   </div>
+  {% for sec in type_sections %}
+  <h3>{{ sec.label }}</h3>
+  <div class="card-grid slept-on-grid" data-type="{{ sec.type }}">
+    {% for card in sec.cards %}{{ slept_on_card(card) }}{% endfor %}
+  </div>
+  {% endfor %}
 </section>
 
 <section id="edhrec-section" class="tab-panel">
