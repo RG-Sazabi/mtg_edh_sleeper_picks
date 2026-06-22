@@ -33,6 +33,19 @@ logger = logging.getLogger(__name__)
 # same), so we drop them and keep only the core card types as features.
 _SUPERTYPES = {"Legendary", "Basic", "Snow", "World", "Ongoing", "Host", "Elite"}
 
+# Ordered (label, card-type) pairs for the per-type Slept On sections. Multi-type
+# cards appear under every matching label; types outside this list are absent from
+# the sections but remain eligible for the overall Top 10.
+SLEPT_ON_TYPE_SECTIONS = [
+    ("Creatures", "Creature"),
+    ("Instants", "Instant"),
+    ("Sorceries", "Sorcery"),
+    ("Enchantments", "Enchantment"),
+    ("Artifacts", "Artifact"),
+    ("Lands", "Land"),
+    ("Planeswalkers", "Planeswalker"),
+]
+
 
 def normalize_name(name: str) -> str:
     """
@@ -219,6 +232,48 @@ def score_cards(
             scored.append(card)
     scored.sort(key=lambda c: c["buzzword_score"], reverse=True)
     return scored
+
+
+def partition_by_type(cards: list[dict], cap: int | None = None) -> list[dict]:
+    """
+    Bucket already-scored Slept On cards into the per-type sections.
+
+    Returns one dict per entry in ``SLEPT_ON_TYPE_SECTIONS`` (stable order)::
+
+        {"label": "Creatures", "type": "Creature", "cards": [...]}
+
+    Creatures slot **only** under Creatures: a creature card (including an artifact
+    creature or enchantment creature) is a creature to a deckbuilder, so it is kept
+    out of the Artifacts/Enchantments/etc. sections, which hold only their
+    non-creature members. A non-creature card still appears under every matching
+    section (e.g. an artifact land lands in both Artifacts and Lands). Cards with
+    none of the seven types appear in no section.
+
+    ``cap`` bounds each section to at most that many cards (``None`` = unbounded).
+    Because ``cards`` is iterated in order and buckets fill independently, passing a
+    score-desc list yields score-desc sections, and capping keeps each section's
+    top-``cap`` highest-scoring cards. Pure: the same card dicts are referenced (not
+    copied) and never mutated.
+    """
+    buckets: dict[str, list[dict]] = {
+        label: [] for label, _ in SLEPT_ON_TYPE_SECTIONS
+    }
+    for card in cards:
+        types = {f for f in card_features(card) if f.startswith("type:")}
+        is_creature = "type:Creature" in types
+        for label, type_name in SLEPT_ON_TYPE_SECTIONS:
+            if f"type:{type_name}" not in types:
+                continue
+            # Creatures belong only in the Creatures section.
+            if is_creature and type_name != "Creature":
+                continue
+            if cap is not None and len(buckets[label]) >= cap:
+                continue
+            buckets[label].append(card)
+    return [
+        {"label": label, "type": type_name, "cards": buckets[label]}
+        for label, type_name in SLEPT_ON_TYPE_SECTIONS
+    ]
 
 
 def apply_inclusion_cap(slept_on: list[dict], cap: float) -> list[dict]:
