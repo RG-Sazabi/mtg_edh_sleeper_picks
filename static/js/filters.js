@@ -23,6 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const edhrecCards = document.querySelectorAll('#edhrec-section .card-item');
   const sleptOnGrid = document.getElementById('slept-on-grid');
+  // The overall Top 10 grid (#slept-on-grid) plus the seven per-type sections,
+  // all sharing .slept-on-grid. Filters apply to every grid; the N limit only
+  // to the Top 10 (see applyFilters).
+  const sleptOnGrids = document.querySelectorAll('.slept-on-grid');
 
   // ── Live re-scoring: mute features in Diagnostics, re-rank without a reload ──
   // Mirrors services/analysis.score_cards: a card's score is the sum of the
@@ -133,27 +137,33 @@ document.addEventListener('DOMContentLoaded', () => {
       card.classList.toggle('hidden', hide);
     });
 
-    // Apply price cap, pauper, and inclusion cap to Slept On section, then N limit.
-    // Iterate the grid's live children so the N-limit respects the current score
-    // order after a re-rank (reorderSleptOn re-appends nodes in score-desc order).
-    let visibleCount = 0;
-    sleptOnGrid.querySelectorAll('.card-item').forEach(card => {
-      const price = parseFloat(card.dataset.price);
-      const rarity = card.dataset.rarity;
-      const inclusion = parseInt(card.dataset.inclusion, 10);
+    // Apply price cap, pauper, and inclusion cap to every Slept On grid (the
+    // overall Top 10 plus the per-type sections), then the N limit. The N limit
+    // applies only to the Top 10 grid (#slept-on-grid); the type sections show
+    // every card that passes the filters. Iterate each grid's live children so
+    // the N-limit respects the current score order after a re-rank
+    // (reorderSleptOn re-appends Top 10 nodes in score-desc order).
+    sleptOnGrids.forEach(grid => {
+      const applyN = grid.id === 'slept-on-grid';
+      let visibleCount = 0;
+      grid.querySelectorAll('.card-item').forEach(card => {
+        const price = parseFloat(card.dataset.price);
+        const rarity = card.dataset.rarity;
+        const inclusion = parseInt(card.dataset.inclusion, 10);
 
-      const hiddenByFilters = price > maxPrice
-        || (pauperOnly && rarity !== 'common')
-        || inclusion > maxInclusion;
+        const hiddenByFilters = price > maxPrice
+          || (pauperOnly && rarity !== 'common')
+          || inclusion > maxInclusion;
 
-      if (hiddenByFilters) {
-        card.classList.add('hidden');
-      } else if (visibleCount < maxN) {
-        card.classList.remove('hidden');
-        visibleCount++;
-      } else {
-        card.classList.add('hidden');
-      }
+        if (hiddenByFilters) {
+          card.classList.add('hidden');
+        } else if (!applyN || visibleCount < maxN) {
+          card.classList.remove('hidden');
+          visibleCount++;
+        } else {
+          card.classList.add('hidden');
+        }
+      });
     });
   }
 
