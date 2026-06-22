@@ -8,9 +8,12 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 # The color pool is now unbounded (whole color identity), but the N slider tops
-# out at 100; cap the rendered Slept On list so 5-color commanders don't emit
-# thousands of DOM nodes the user can never scroll to.
-SLEPT_ON_RENDER_CAP = 200
+# out at 100. Each Slept On section renders its top SLEPT_ON_SECTION_CAP cards so
+# the slider can always reach its max, while 5-color commanders don't emit
+# thousands of DOM nodes per section the user can never scroll to. Sections draw
+# from the *full* scored list (not a global top-N), so a sparse type (e.g.
+# sorceries) still fills up to the cap.
+SLEPT_ON_SECTION_CAP = 100
 
 # The single overall Slept On section shows the N highest-scoring picks.
 TOP_OVERALL_N = 10
@@ -146,9 +149,7 @@ def commander(slug):
     # budget/bracket never move scores; only a tag rescopes the feature weights.
     feature_stats = analysis.compute_feature_stats(scoring_cards)
     weights = {s["feature"]: s["weight"] for s in feature_stats}
-    slept_on = analysis.score_cards(color_pool, weights, exclude_names)[
-        :SLEPT_ON_RENDER_CAP
-    ]
+    slept_on = analysis.score_cards(color_pool, weights, exclude_names)
 
     # Score the EDHRec recommendations on the same scale so the EDHRec tab is
     # directly comparable to Slept On. We do NOT re-rank them (they stay grouped
@@ -164,20 +165,28 @@ def commander(slug):
         c["features"] = analysis.card_features(c)
         c["buzzword_score"] = analysis.score_card(c, weights)
 
-    # Surface each card's feature list so the Diagnostics toggles can re-score it
-    # client-side without a round trip. weights -> feature_weights for the same.
-    # in_edhrec flags picks that are actually EDHRec recommendations (surfaced
-    # only because their inclusion is under the cap) so the template can badge them.
-    for c in slept_on:
+    # Presentation-only split (issue #31): one overall Top 10 plus the seven
+    # per-type sections. Partition the FULL scored list (not a global top-N) so a
+    # sparse type still fills up to SLEPT_ON_SECTION_CAP; creatures slot only under
+    # Creatures. partition_by_type buckets the same dicts by reference and preserves
+    # score-desc order, so a card can appear in Top 10 and in its type section.
+    top_overall = slept_on[:TOP_OVERALL_N]
+    type_sections = analysis.partition_by_type(slept_on, cap=SLEPT_ON_SECTION_CAP)
+
+    # Surface each displayed card's feature list so the Diagnostics toggles can
+    # re-score it client-side without a round trip. weights -> feature_weights for
+    # the same. in_edhrec flags picks that are actually EDHRec recommendations
+    # (surfaced only because their inclusion is under the cap) so the template can
+    # badge them. Enrich only the rendered cards (Top 10 + section members), not
+    # the whole scored color pool; the shared dicts are deduped by identity.
+    displayed = top_overall + [c for sec in type_sections for c in sec["cards"]]
+    seen_ids: set[int] = set()
+    for c in displayed:
+        if id(c) in seen_ids:
+            continue
+        seen_ids.add(id(c))
         c["features"] = analysis.card_features(c)
         c["in_edhrec"] = analysis.normalize_name(c["name"]) in edhrec_names
-
-    # Presentation-only split (issue #31): one overall Top 10 plus the seven
-    # per-type sections. partition_by_type buckets the same enriched dicts (by
-    # reference) preserving score-desc order, so a card can appear in Top 10 and
-    # in every type section whose type it carries — no re-enrichment, no re-sort.
-    top_overall = slept_on[:TOP_OVERALL_N]
-    type_sections = analysis.partition_by_type(slept_on)
 
     return render_template(
         "commander.html",
@@ -185,7 +194,6 @@ def commander(slug):
         commanders=commanders,
         edhrec_cards=edhrec_cards,
         featured=featured,
-        slept_on=slept_on,
         top_overall=top_overall,
         type_sections=type_sections,
         feature_stats=feature_stats,

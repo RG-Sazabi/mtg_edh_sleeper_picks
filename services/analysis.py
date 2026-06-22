@@ -234,7 +234,7 @@ def score_cards(
     return scored
 
 
-def partition_by_type(cards: list[dict]) -> list[dict]:
+def partition_by_type(cards: list[dict], cap: int | None = None) -> list[dict]:
     """
     Bucket already-scored Slept On cards into the per-type sections.
 
@@ -242,20 +242,34 @@ def partition_by_type(cards: list[dict]) -> list[dict]:
 
         {"label": "Creatures", "type": "Creature", "cards": [...]}
 
-    A card is added to every section whose ``type:<Name>`` it carries (so an
-    artifact creature appears under both Artifacts and Creatures); cards with none
-    of the seven types appear in no section. Input order is preserved within each
-    bucket, so passing a score-desc list yields score-desc sections. Pure: the same
-    card dicts are referenced (not copied) and never mutated.
+    Creatures slot **only** under Creatures: a creature card (including an artifact
+    creature or enchantment creature) is a creature to a deckbuilder, so it is kept
+    out of the Artifacts/Enchantments/etc. sections, which hold only their
+    non-creature members. A non-creature card still appears under every matching
+    section (e.g. an artifact land lands in both Artifacts and Lands). Cards with
+    none of the seven types appear in no section.
+
+    ``cap`` bounds each section to at most that many cards (``None`` = unbounded).
+    Because ``cards`` is iterated in order and buckets fill independently, passing a
+    score-desc list yields score-desc sections, and capping keeps each section's
+    top-``cap`` highest-scoring cards. Pure: the same card dicts are referenced (not
+    copied) and never mutated.
     """
     buckets: dict[str, list[dict]] = {
         label: [] for label, _ in SLEPT_ON_TYPE_SECTIONS
     }
     for card in cards:
         types = {f for f in card_features(card) if f.startswith("type:")}
+        is_creature = "type:Creature" in types
         for label, type_name in SLEPT_ON_TYPE_SECTIONS:
-            if f"type:{type_name}" in types:
-                buckets[label].append(card)
+            if f"type:{type_name}" not in types:
+                continue
+            # Creatures belong only in the Creatures section.
+            if is_creature and type_name != "Creature":
+                continue
+            if cap is not None and len(buckets[label]) >= cap:
+                continue
+            buckets[label].append(card)
     return [
         {"label": label, "type": type_name, "cards": buckets[label]}
         for label, type_name in SLEPT_ON_TYPE_SECTIONS
