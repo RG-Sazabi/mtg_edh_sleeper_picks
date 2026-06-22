@@ -44,3 +44,19 @@ Generated from: `.agents/PRDs/prd-edhrec-parity-partners.md`
 4. **#19** — selectors + tag rescoring; builds on #15.
 5. **#21** — partner pairings; coordinate header with #18.
 6. **#22** — score-breakdown tooltip; after #15.
+
+## Batch 4 — Type-segmented Slept On & Archidekt deck input (added 2026-06-22)
+
+Generated from: `.agents/PRDs/prd-type-sections-archidekt.md`
+
+| # | Issue | Title | URL |
+|---|-------|-------|-----|
+| 17 | #31 | Split Slept On into a Top 10 + per-card-type sections (server + template) | https://github.com/RG-Sazabi/mtg_edh_sleeper_picks/issues/31 |
+| 18 | #32 | Make filters and a shared N slider work across all Slept On sections (client) | https://github.com/RG-Sazabi/mtg_edh_sleeper_picks/issues/32 |
+| 19 | #33 | Add Archidekt deck-URL input: parse deck, detect commander, route to analysis | https://github.com/RG-Sazabi/mtg_edh_sleeper_picks/issues/33 |
+| 20 | #34 | Score Slept On against a linked deck: force 100% inclusion + "in deck" badge | https://github.com/RG-Sazabi/mtg_edh_sleeper_picks/issues/34 |
+
+### Suggested sequencing (Batch 4)
+Two independent tracks that can proceed in parallel:
+- **Type sections:** **#31** (server + template) → **#32** (client filtering / shared N slider).
+- **Archidekt:** **#33** (deck ingestion + commander detection) → **#34** (deck-scoped scoring + "in deck" badge). #34 carries the key P_X/P_B scoring-formulation decision.
