@@ -20,6 +20,7 @@ and are intentionally persisted to disk. See CLAUDE.md "Scryfall Rate Limiting".
 
 import logging
 import os
+import threading
 import time
 from collections import defaultdict
 
@@ -69,6 +70,9 @@ _cards: list[dict] = []
 _by_name: dict[str, dict] = {}
 _by_oracle_id: dict[str, dict] = {}
 _loaded = False
+# Serializes index building so a startup warm-up thread and an early request
+# thread can't both download/parse the ~540MB bulk files concurrently.
+_load_lock = threading.Lock()
 # Memoized sorted list of front-face commander names; rebuilt when indices reload.
 _commander_names: list[str] | None = None
 # Memoized {partner_kind -> sorted [front-face name]}; rebuilt when indices reload.
@@ -308,20 +312,27 @@ def _neg(released: str) -> str:
 
 
 def ensure_loaded() -> None:
-    """Download (if stale) and build all in-memory indices. Idempotent per process."""
+    """
+    Download (if stale) and build all in-memory indices. Idempotent per process
+    and thread-safe: concurrent callers (e.g. the startup warm-up thread and an
+    early request) serialize on ``_load_lock`` so the build runs exactly once.
+    """
     global _loaded, _commander_names, _partner_pools
     if _loaded:
         return
-    cards_path = _ensure_fresh("default_cards")
-    tags_path = _ensure_fresh("oracle_tags")
-    if tags_path:
-        _build_otag_index(tags_path)
-    if cards_path:
-        _build_card_index(cards_path)
-    # Indices were (re)built; drop any cached derived view so it rebuilds on demand.
-    _commander_names = None
-    _partner_pools = None
-    _loaded = True
+    with _load_lock:
+        if _loaded:  # another thread finished the build while we waited
+            return
+        cards_path = _ensure_fresh("default_cards")
+        tags_path = _ensure_fresh("oracle_tags")
+        if tags_path:
+            _build_otag_index(tags_path)
+        if cards_path:
+            _build_card_index(cards_path)
+        # Indices were (re)built; drop any cached derived view so it rebuilds.
+        _commander_names = None
+        _partner_pools = None
+        _loaded = True
 
 
 def otags_for(oracle_id: str) -> list[str]:

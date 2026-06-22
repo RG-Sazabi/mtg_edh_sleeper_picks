@@ -1,4 +1,6 @@
 import logging
+import os
+import threading
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 
@@ -208,4 +210,14 @@ def commander(slug):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    debug = True
+    # Warm the bulk store on startup so the first autocomplete keystroke doesn't
+    # pay the ~540MB download/parse cost. Run it in a daemon thread so the server
+    # still binds immediately (and code-reload stays snappy); ensure_loaded() is
+    # thread-safe, so an early request that races the warm-up just waits on it.
+    # With the reloader on (debug), only the request-serving child sets
+    # WERKZEUG_RUN_MAIN=true — warm there, not in the parent, to avoid loading
+    # the bulk files twice.
+    if not debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        threading.Thread(target=scryfall.warm_up, daemon=True).start()
+    app.run(debug=debug)
