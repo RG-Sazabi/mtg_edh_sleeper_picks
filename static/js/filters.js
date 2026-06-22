@@ -137,14 +137,13 @@ document.addEventListener('DOMContentLoaded', () => {
       card.classList.toggle('hidden', hide);
     });
 
-    // Apply price cap, pauper, and inclusion cap to every Slept On grid (the
-    // overall Top 10 plus the per-type sections), then the N limit. The N limit
-    // applies only to the Top 10 grid (#slept-on-grid); the type sections show
-    // every card that passes the filters. Iterate each grid's live children so
-    // the N-limit respects the current score order after a re-rank
-    // (reorderSleptOn re-appends Top 10 nodes in score-desc order).
+    // Apply price cap, pauper, inclusion cap, and the N limit to every Slept On
+    // grid (the overall Top 10 plus the per-type sections). The N limit counts
+    // per grid, so each section independently shows its top N passing cards.
+    // Iterate each grid's live children so the N-limit respects the current
+    // score order after a re-rank (reorderSleptOn re-appends Top 10 nodes in
+    // score-desc order).
     sleptOnGrids.forEach(grid => {
-      const applyN = grid.id === 'slept-on-grid';
       let visibleCount = 0;
       grid.querySelectorAll('.card-item').forEach(card => {
         const price = parseFloat(card.dataset.price);
@@ -157,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (hiddenByFilters) {
           card.classList.add('hidden');
-        } else if (!applyN || visibleCount < maxN) {
+        } else if (visibleCount < maxN) {
           card.classList.remove('hidden');
           visibleCount++;
         } else {
