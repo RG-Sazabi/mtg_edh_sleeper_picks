@@ -227,11 +227,49 @@ def commander(slug):
         c["features"] = analysis.card_features(c)
         c["in_edhrec"] = analysis.normalize_name(c["name"]) in edhrec_names
 
+    # 6. Deck tab (issue #33): when the page was reached from an Archidekt link,
+    #    the index route attached ?deck=<id>. Re-fetch that deck and render its
+    #    own card list as a fourth tab. Each card is enriched + scored on the SAME
+    #    weights as Slept On so its up-to-date Buzzword Score shows, and joined to
+    #    the inclusion index for a real inclusion %. The tab is display-only: the
+    #    template renders it outside the Slept On / EDHRec grids the client filters
+    #    touch, so price/pauper/inclusion/N gating never hides deck cards. A
+    #    missing/unreadable deck just yields no tab (degrade, never 500).
+    deck_cards: list[dict] = []
+    deck_id = request.args.get("deck", "")
+    if deck_id:
+        deck = archidekt.get_deck(deck_id)
+        if deck:
+            deck_names = deck["card_names"]
+            deck_details = scryfall.get_cards_collection(deck_names)
+            for name in deck_names:
+                card = {
+                    "name": name,
+                    "edhrec_category": "",
+                    "edhrec_synergy": 0.0,
+                    "edhrec_inclusion": 0.0,
+                    "buzzword_score": 0.0,
+                }
+                card.update(
+                    deck_details.get(name, scryfall._empty_card_details())
+                )
+                hit = incl_index.get(analysis.normalize_name(name))
+                if hit:
+                    card["edhrec_inclusion"] = hit["inclusion"]
+                    card["edhrec_synergy"] = hit["synergy"]
+                card["features"] = analysis.card_features(card)
+                card["buzzword_score"] = analysis.score_card(card, weights)
+                card["in_edhrec"] = (
+                    analysis.normalize_name(name) in edhrec_names
+                )
+                deck_cards.append(card)
+
     return render_template(
         "commander.html",
         commander=info,
         commanders=commanders,
         edhrec_cards=edhrec_cards,
+        deck_cards=deck_cards,
         featured=featured,
         overall_pool=overall_pool,
         top_overall_n=TOP_OVERALL_N,
