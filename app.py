@@ -4,7 +4,7 @@ import threading
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 
-from services import edhrec, scryfall, analysis, bulk
+from services import edhrec, scryfall, analysis, bulk, archidekt
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +24,39 @@ TOP_OVERALL_N = 10
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
+        # Archidekt deck-URL branch (issue #33). Checked first; falls through to
+        # the commander/partner name flow when the deck field is empty. Routing
+        # carries ?deck=<id> for issue #34 (deck-scoped scoring), which the
+        # commander route currently ignores.
+        archidekt_url = request.form.get("archidekt_url", "").strip()
+        if archidekt_url:
+            deck_id = archidekt.parse_deck_id(archidekt_url)
+            deck = archidekt.get_deck(deck_id) if deck_id else None
+            if not deck:
+                return (
+                    render_template(
+                        "error.html",
+                        message="Couldn't read that Archidekt deck. Check the "
+                        "URL is a public archidekt.com deck link.",
+                    ),
+                    400,
+                )
+            names = deck["commander_names"]
+            if not names or len(names) > 2:
+                return (
+                    render_template(
+                        "error.html",
+                        message="Couldn't find a commander in that deck. The "
+                        "deck needs a card in its Commander category.",
+                    ),
+                    400,
+                )
+            if len(names) == 2:
+                slug = edhrec.resolve_pairing_slug(names[0], names[1])
+            else:
+                slug = edhrec.slugify(names[0])
+            return redirect(url_for("commander", slug=slug, deck=deck["deck_id"]))
+
         name = request.form.get("commander", "").strip()
         partner = request.form.get("partner", "").strip()
         if name:
