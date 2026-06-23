@@ -13,6 +13,28 @@ section via a new shared Jinja macro. The current `#slept-on-grid` id is preserv
 Top 10 grid so `static/js/filters.js` keeps working unchanged — generalizing client
 filtering across all grids is the follow-up issue (#32).
 
+## As-Built Deviations (approved — supersedes the plan body below)
+The implementation diverged from this plan at the user's direction. The shipped behavior:
+
+1. **Creatures slot only under Creatures.** A creature — including an artifact/enchantment
+   creature — appears **only** in the Creatures section, not also in Artifacts/Enchantments.
+   Other multi-type cards still appear under every matching section (e.g. an artifact land
+   in both Artifacts and Lands). This intentionally overrides the original "appear in every
+   matching section" requirement. See `partition_by_type` (`services/analysis.py`), which
+   carries an `is_creature` guard.
+2. **`partition_by_type(cards, cap=None)` gained a `cap` parameter**, and sections draw from
+   the **full** scored list capped per-section at `SLEPT_ON_SECTION_CAP = 100`, rather than
+   partitioning a globally `[:SLEPT_ON_RENDER_CAP=200]`-capped list. This lets a sparse type
+   fill up to the cap. `app.py` no longer slices `slept_on`; it enriches only the displayed
+   union (Top 10 + section members), deduped by `id()`.
+3. **Per-grid filtering + N-limit landed here, not in #32.** `static/js/filters.js` already
+   iterates all `.slept-on-grid` for price/pauper/inclusion + N-limit. Still pending for #32:
+   generalizing `reorderSleptOn` to every grid and the Top 10 filter-refill (the Top 10 grid
+   still renders only `top_overall`'s 10 nodes).
+
+The task list below is the original intent, kept for history; where it conflicts with the
+three points above, the as-built behavior wins.
+
 ## User Story
 As a deckbuilder, I want the Slept On picks split by card type with one overall Top 10,
 so that I can quickly find sleeper cards for the exact slot I'm filling and still see the
@@ -268,7 +290,7 @@ python -m py_compile app.py services/analysis.py
   - [ ] Single **Top 10** section shows the 10 highest-scoring picks overall
   - [ ] Seven per-type sections render, ranked independently
   - [ ] A card may appear in both the Top 10 and its type section(s)
-  - [ ] A multi-type card appears in every matching type section
+  - [ ] A multi-type non-creature card appears in every matching type section; creatures slot only under Creatures (approved deviation — see As-Built Deviations)
   - [ ] Cards outside the seven types stay eligible for Top 10, absent from type sections
   - [ ] Commander-name flow (Atraxa) renders without regression (page JS intact)
 

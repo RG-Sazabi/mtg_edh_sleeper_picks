@@ -418,6 +418,7 @@ nav.tabs {
 
 /* ── Hidden state (toggled by filters.js) ── */
 .card-item.hidden { display: none; }
+.hidden-section { display: none; }
 
 /* ── Error page ── */
 .error-page { text-align: center; padding: 4rem 1rem; }

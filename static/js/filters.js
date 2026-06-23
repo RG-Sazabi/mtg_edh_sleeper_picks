@@ -22,11 +22,22 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const edhrecCards = document.querySelectorAll('#edhrec-section .card-item');
-  const sleptOnGrid = document.getElementById('slept-on-grid');
   // The overall Top 10 grid (#slept-on-grid) plus the seven per-type sections,
-  // all sharing .slept-on-grid. Filters apply to every grid; the N limit only
-  // to the Top 10 (see applyFilters).
+  // all sharing .slept-on-grid. Filters and the N limit apply to every grid: the
+  // Top 10 grid is N-limited to a fixed 10 via data-fixed-n, while the type grids
+  // follow the shared slider (see applyFilters).
   const sleptOnGrids = document.querySelectorAll('.slept-on-grid');
+
+  // Hide any type section that rendered zero cards (e.g. a commander with no
+  // sorceries among its picks) so the page shows no bare <h3>. Evaluated once on
+  // load — sections don't gain cards from filtering, only lose them.
+  sleptOnGrids.forEach(grid => {
+    if (grid.querySelectorAll('.card-item').length === 0) {
+      grid.classList.add('hidden-section');
+      const heading = grid.previousElementSibling;
+      if (heading && heading.tagName === 'H3') heading.classList.add('hidden-section');
+    }
+  });
 
   // ── Live re-scoring: mute features in Diagnostics, re-rank without a reload ──
   // Mirrors services/analysis.score_cards: a card's score is the sum of the
@@ -111,12 +122,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Re-rank the Slept On grid by current score, descending, so the N-limit in
-  // applyFilters (which iterates the grid's live children) picks the true top-N.
-  function reorderSleptOn() {
-    const cards = Array.from(sleptOnGrid.querySelectorAll('.card-item'));
-    cards.sort((a, b) => parseFloat(b.dataset.score) - parseFloat(a.dataset.score));
-    cards.forEach(card => sleptOnGrid.appendChild(card));
+  // Re-rank every Slept On grid by current score, descending, so the N-limit in
+  // applyFilters (which iterates each grid's live children) picks the true top-N
+  // after a Diagnostics re-score changed the ordering.
+  function reorderSleptOnGrids() {
+    sleptOnGrids.forEach(grid => {
+      const cards = Array.from(grid.querySelectorAll('.card-item'));
+      cards.sort((a, b) => parseFloat(b.dataset.score) - parseFloat(a.dataset.score));
+      cards.forEach(card => grid.appendChild(card));
+    });
   }
 
   function applyFilters() {
@@ -140,10 +154,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Apply price cap, pauper, inclusion cap, and the N limit to every Slept On
     // grid (the overall Top 10 plus the per-type sections). The N limit counts
     // per grid, so each section independently shows its top N passing cards.
-    // Iterate each grid's live children so the N-limit respects the current
-    // score order after a re-rank (reorderSleptOn re-appends Top 10 nodes in
-    // score-desc order).
+    // A grid with data-fixed-n (the Top 10) uses that fixed limit; the type grids
+    // follow the shared slider. Iterating each grid's live children means the
+    // N-limit respects the current score order after a re-rank
+    // (reorderSleptOnGrids re-appends nodes in score-desc order).
     sleptOnGrids.forEach(grid => {
+      const fixed = grid.dataset.fixedN;
+      const gridMaxN = fixed ? parseInt(fixed, 10) : maxN;
       let visibleCount = 0;
       grid.querySelectorAll('.card-item').forEach(card => {
         const price = parseFloat(card.dataset.price);
@@ -156,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (hiddenByFilters) {
           card.classList.add('hidden');
-        } else if (visibleCount < maxN) {
+        } else if (visibleCount < gridMaxN) {
           card.classList.remove('hidden');
           visibleCount++;
         } else {
@@ -182,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function rescore() {
     recomputeScores();
-    reorderSleptOn();
+    reorderSleptOnGrids();
     applyFilters();
   }
 

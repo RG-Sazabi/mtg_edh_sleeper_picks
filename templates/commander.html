@@ -56,8 +56,8 @@
       <span id="inclusion-label">10</span>%</label>
   </div>
   <h3>Top 10</h3>
-  <div class="card-grid slept-on-grid" id="slept-on-grid">
-    {% for card in top_overall %}{{ slept_on_card(card) }}{% endfor %}
+  <div class="card-grid slept-on-grid" id="slept-on-grid" data-fixed-n="{{ top_overall_n }}">
+    {% for card in overall_pool %}{{ slept_on_card(card) }}{% endfor %}
   </div>
   {% for sec in type_sections %}
   <h3>{{ sec.label }}</h3>
