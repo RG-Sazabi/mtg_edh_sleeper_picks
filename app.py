@@ -96,6 +96,10 @@ def commander(slug):
     tag = request.args.get("tag", "")
     budget = request.args.get("budget", "")
     bracket = request.args.get("bracket", "")
+    # Deck-scoped scoring (issue #34): an Archidekt deck id carried over from the
+    # index route. When present, the deck's cards tilt the feature weights (forced
+    # to 100% inclusion in the scoring path) and get an "In deck" badge.
+    deck_id = request.args.get("deck", "")
 
     # 1. Display view: the fully-composed scope drives the EDHRec tab, featured
     #    rows, the inclusion cross-ref, and the Slept On exclusion set.
@@ -142,6 +146,30 @@ def commander(slug):
         scoring_cards = edhrec_cards
     else:
         scoring_cards = edhrec.cards_from_data(scoring_data)
+
+    # 2d. Deck-scoped scoring (issue #34): fetch the linked Archidekt deck once
+    #     (reused by the Deck tab in step 6) and force its cards in the scoring set
+    #     to 100% inclusion via the scoring-only `forced_inclusion` field. This
+    #     tilts the feature weights toward what the deck over-uses without touching
+    #     the displayed `edhrec_inclusion` (which keeps the real baseline and keeps
+    #     deck cards visible under the inclusion-cap filter). A missing/unreadable
+    #     deck leaves `deck_names` empty -> normal commander-average render, no 500.
+    deck = None
+    deck_names: set[str] = set()
+    if deck_id:
+        deck = archidekt.get_deck(deck_id)
+        if deck:
+            deck_names = {
+                analysis.normalize_name(n) for n in deck["card_names"]
+            }
+            for c in scoring_cards:
+                if analysis.normalize_name(c["name"]) in deck_names:
+                    c["forced_inclusion"] = 1.0
+        else:
+            app.logger.warning(
+                "deck %s could not be fetched; rendering commander average",
+                deck_id,
+            )
 
     # 3. Enrich display + scoring cards with Scryfall data from the local bulk
     #    store in one collection call.
@@ -192,6 +220,7 @@ def commander(slug):
     for c in edhrec_cards:
         c["features"] = analysis.card_features(c)
         c["buzzword_score"] = analysis.score_card(c, weights)
+        c["in_deck"] = analysis.normalize_name(c["name"]) in deck_names
 
     # Display-score the featured cards on the same weights (for the EDHRec tab's
     # featured rows). They are display-only — never appended to edhrec_cards and
@@ -199,6 +228,7 @@ def commander(slug):
     for c in featured_cards:
         c["features"] = analysis.card_features(c)
         c["buzzword_score"] = analysis.score_card(c, weights)
+        c["in_deck"] = analysis.normalize_name(c["name"]) in deck_names
 
     # Presentation-only split (issue #31/#32): one overall Top 10 plus the seven
     # per-type sections. Partition the FULL scored list (not a global top-N) so a
@@ -226,43 +256,43 @@ def commander(slug):
         seen_ids.add(id(c))
         c["features"] = analysis.card_features(c)
         c["in_edhrec"] = analysis.normalize_name(c["name"]) in edhrec_names
+        c["in_deck"] = analysis.normalize_name(c["name"]) in deck_names
 
     # 6. Deck tab (issue #33): when the page was reached from an Archidekt link,
-    #    the index route attached ?deck=<id>. Re-fetch that deck and render its
-    #    own card list as a fourth tab. Each card is enriched + scored on the SAME
-    #    weights as Slept On so its up-to-date Buzzword Score shows, and joined to
-    #    the inclusion index for a real inclusion %. The tab is display-only: the
-    #    template renders it outside the Slept On / EDHRec grids the client filters
-    #    touch, so price/pauper/inclusion/N gating never hides deck cards. A
-    #    missing/unreadable deck just yields no tab (degrade, never 500).
+    #    the index route attached ?deck=<id>. Reuse the deck already fetched in
+    #    step 2d and render its own card list as a fourth tab. Each card is
+    #    enriched + scored on the SAME weights as Slept On so its up-to-date
+    #    Buzzword Score shows, and joined to the inclusion index for a real
+    #    inclusion %. The tab is display-only: the template renders it outside the
+    #    Slept On / EDHRec grids the client filters touch, so price/pauper/
+    #    inclusion/N gating never hides deck cards. A missing/unreadable deck just
+    #    yields no tab (degrade, never 500).
     deck_cards: list[dict] = []
-    deck_id = request.args.get("deck", "")
-    if deck_id:
-        deck = archidekt.get_deck(deck_id)
-        if deck:
-            deck_names = deck["card_names"]
-            deck_details = scryfall.get_cards_collection(deck_names)
-            for name in deck_names:
-                card = {
-                    "name": name,
-                    "edhrec_category": "",
-                    "edhrec_synergy": 0.0,
-                    "edhrec_inclusion": 0.0,
-                    "buzzword_score": 0.0,
-                }
-                card.update(
-                    deck_details.get(name, scryfall._empty_card_details())
-                )
-                hit = incl_index.get(analysis.normalize_name(name))
-                if hit:
-                    card["edhrec_inclusion"] = hit["inclusion"]
-                    card["edhrec_synergy"] = hit["synergy"]
-                card["features"] = analysis.card_features(card)
-                card["buzzword_score"] = analysis.score_card(card, weights)
-                card["in_edhrec"] = (
-                    analysis.normalize_name(name) in edhrec_names
-                )
-                deck_cards.append(card)
+    if deck:
+        card_names = deck["card_names"]
+        deck_details = scryfall.get_cards_collection(card_names)
+        for name in card_names:
+            card = {
+                "name": name,
+                "edhrec_category": "",
+                "edhrec_synergy": 0.0,
+                "edhrec_inclusion": 0.0,
+                "buzzword_score": 0.0,
+            }
+            card.update(
+                deck_details.get(name, scryfall._empty_card_details())
+            )
+            hit = incl_index.get(analysis.normalize_name(name))
+            if hit:
+                card["edhrec_inclusion"] = hit["inclusion"]
+                card["edhrec_synergy"] = hit["synergy"]
+            card["features"] = analysis.card_features(card)
+            card["buzzword_score"] = analysis.score_card(card, weights)
+            card["in_edhrec"] = (
+                analysis.normalize_name(name) in edhrec_names
+            )
+            card["in_deck"] = True
+            deck_cards.append(card)
 
     return render_template(
         "commander.html",
