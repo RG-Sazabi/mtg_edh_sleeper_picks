@@ -23,6 +23,12 @@
 <p id="autocomplete-hint" class="autocomplete-hint" hidden>
   Press <kbd>Tab</kbd> to complete: <span id="autocomplete-top"></span>
 </p>
+<p class="or-divider">— or —</p>
+<form method="POST" action="{{ url_for('index') }}" class="archidekt-form">
+  <input type="url" name="archidekt_url" id="archidekt-input"
+         placeholder="Paste an Archidekt deck URL…" autocomplete="off">
+  <button type="submit">Analyze deck</button>
+</form>
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
