@@ -21,6 +21,24 @@ inclusion minus the color-identity baseline inclusion, so
 
 and both fields already come from the commander page.
 
+Deck-scoped scoring (issue #34)
+-------------------------------
+When the commander page is reached with a linked Archidekt deck, we tilt the
+weights toward what *that build* over-uses without disturbing the color baseline.
+A scoring-only ``forced_inclusion`` field (set by the route on deck cards) drives
+the P_X term:
+
+    incl_c = forced_inclusion if present else edhrec_inclusion  # deck cards -> 1.0
+    base_c = edhrec_inclusion - edhrec_synergy                  # UNCHANGED baseline
+
+Deck membership thus forces P_X(f) toward 1.0 for the features the deck carries,
+raising their lift/weight, while P_B(f) stays the true color-identity baseline so
+the lift stays meaningful. We deliberately do NOT overwrite the displayed
+``edhrec_inclusion``: that would (a) corrupt ``base_c = inclusion - synergy`` and
+(b) push deck cards past the inclusion-cap filter, hiding the very cards we mean to
+keep visible. Cards without ``forced_inclusion`` behave exactly as before, so the
+non-deck flow is unchanged.
+
 All functions here are pure: no I/O, no API calls.
 """
 
@@ -140,6 +158,12 @@ def compute_feature_stats(
     average inclusion among the commander's decks vs. the color baseline, ``lift``
     is ``log(p_x / p_b)`` and ``weight`` is the inclusion-weighted contribution
     ``p_x * lift`` actually summed into each card's score.
+
+    Deck-scoped scoring (issue #34): a card may carry a scoring-only
+    ``forced_inclusion``; when present it (not ``edhrec_inclusion``) drives the
+    P_X term, so deck cards push P_X toward 1.0 for their features. P_B is always
+    the real ``edhrec_inclusion - edhrec_synergy`` baseline. Absent the override,
+    behavior is identical to before. Still pure (no I/O).
     """
     incl_sum: dict[str, float] = {}
     base_sum: dict[str, float] = {}
@@ -148,7 +172,8 @@ def compute_feature_stats(
     for card in edhrec_cards:
         incl = card.get("edhrec_inclusion", 0.0) or 0.0
         syn = card.get("edhrec_synergy", 0.0) or 0.0
-        incl_c = max(incl, eps)
+        forced = card.get("forced_inclusion")
+        incl_c = max(forced if forced is not None else incl, eps)
         base_c = max(incl - syn, eps)  # baseline inclusion for this card's color pool
         for feat in card_features(card):
             incl_sum[feat] = incl_sum.get(feat, 0.0) + incl_c
