@@ -167,12 +167,16 @@ def commander(slug):
         c["features"] = analysis.card_features(c)
         c["buzzword_score"] = analysis.score_card(c, weights)
 
-    # Presentation-only split (issue #31): one overall Top 10 plus the seven
+    # Presentation-only split (issue #31/#32): one overall Top 10 plus the seven
     # per-type sections. Partition the FULL scored list (not a global top-N) so a
     # sparse type still fills up to SLEPT_ON_SECTION_CAP; creatures slot only under
     # Creatures. partition_by_type buckets the same dicts by reference and preserves
     # score-desc order, so a card can appear in Top 10 and in its type section.
-    top_overall = slept_on[:TOP_OVERALL_N]
+    # The Top 10 grid renders a refill pool of up to SLEPT_ON_SECTION_CAP candidates
+    # (same magnitude as a type section) and is capped to TOP_OVERALL_N *visible*
+    # cards client-side via data-fixed-n, so filters can refill it from the pool
+    # instead of thinning it out. The "10" lives only in that fixed-N attribute.
+    overall_pool = slept_on[:SLEPT_ON_SECTION_CAP]
     type_sections = analysis.partition_by_type(slept_on, cap=SLEPT_ON_SECTION_CAP)
 
     # Surface each displayed card's feature list so the Diagnostics toggles can
@@ -181,7 +185,7 @@ def commander(slug):
     # (surfaced only because their inclusion is under the cap) so the template can
     # badge them. Enrich only the rendered cards (Top 10 + section members), not
     # the whole scored color pool; the shared dicts are deduped by identity.
-    displayed = top_overall + [c for sec in type_sections for c in sec["cards"]]
+    displayed = overall_pool + [c for sec in type_sections for c in sec["cards"]]
     seen_ids: set[int] = set()
     for c in displayed:
         if id(c) in seen_ids:
@@ -196,7 +200,8 @@ def commander(slug):
         commanders=commanders,
         edhrec_cards=edhrec_cards,
         featured=featured,
-        top_overall=top_overall,
+        overall_pool=overall_pool,
+        top_overall_n=TOP_OVERALL_N,
         type_sections=type_sections,
         feature_stats=feature_stats,
         feature_weights=weights,
