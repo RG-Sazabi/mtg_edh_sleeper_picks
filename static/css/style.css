@@ -145,6 +145,25 @@ button[type="submit"]:hover { background: #c73652; }
   font-size: 0.78rem;
 }
 
+/* ── Archidekt deck-URL input (issue #33) ── */
+.or-divider {
+  text-align: center;
+  color: #7f8aa3;
+  margin: 1.25rem 0 0.25rem;
+  font-size: 0.9rem;
+}
+
+.archidekt-form input[type="url"] {
+  flex: 1;
+  min-width: 280px;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #0f3460;
+  background: #16213e;
+  color: #e0e0e0;
+  font-size: 1rem;
+}
+
 /* ── Controls bar ── */
 #controls {
   display: flex;

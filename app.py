@@ -4,7 +4,7 @@ import threading
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 
-from services import edhrec, scryfall, analysis, bulk
+from services import edhrec, scryfall, analysis, bulk, archidekt
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +24,39 @@ TOP_OVERALL_N = 10
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
+        # Archidekt deck-URL branch (issue #33). Checked first; falls through to
+        # the commander/partner name flow when the deck field is empty. Routing
+        # carries ?deck=<id> for issue #34 (deck-scoped scoring), which the
+        # commander route currently ignores.
+        archidekt_url = request.form.get("archidekt_url", "").strip()
+        if archidekt_url:
+            deck_id = archidekt.parse_deck_id(archidekt_url)
+            deck = archidekt.get_deck(deck_id) if deck_id else None
+            if not deck:
+                return (
+                    render_template(
+                        "error.html",
+                        message="Couldn't read that Archidekt deck. Check the "
+                        "URL is a public archidekt.com deck link.",
+                    ),
+                    400,
+                )
+            names = deck["commander_names"]
+            if not names or len(names) > 2:
+                return (
+                    render_template(
+                        "error.html",
+                        message="Couldn't find a commander in that deck. The "
+                        "deck needs a card in its Commander category.",
+                    ),
+                    400,
+                )
+            if len(names) == 2:
+                slug = edhrec.resolve_pairing_slug(names[0], names[1])
+            else:
+                slug = edhrec.slugify(names[0])
+            return redirect(url_for("commander", slug=slug, deck=deck["deck_id"]))
+
         name = request.form.get("commander", "").strip()
         partner = request.form.get("partner", "").strip()
         if name:
@@ -194,11 +227,49 @@ def commander(slug):
         c["features"] = analysis.card_features(c)
         c["in_edhrec"] = analysis.normalize_name(c["name"]) in edhrec_names
 
+    # 6. Deck tab (issue #33): when the page was reached from an Archidekt link,
+    #    the index route attached ?deck=<id>. Re-fetch that deck and render its
+    #    own card list as a fourth tab. Each card is enriched + scored on the SAME
+    #    weights as Slept On so its up-to-date Buzzword Score shows, and joined to
+    #    the inclusion index for a real inclusion %. The tab is display-only: the
+    #    template renders it outside the Slept On / EDHRec grids the client filters
+    #    touch, so price/pauper/inclusion/N gating never hides deck cards. A
+    #    missing/unreadable deck just yields no tab (degrade, never 500).
+    deck_cards: list[dict] = []
+    deck_id = request.args.get("deck", "")
+    if deck_id:
+        deck = archidekt.get_deck(deck_id)
+        if deck:
+            deck_names = deck["card_names"]
+            deck_details = scryfall.get_cards_collection(deck_names)
+            for name in deck_names:
+                card = {
+                    "name": name,
+                    "edhrec_category": "",
+                    "edhrec_synergy": 0.0,
+                    "edhrec_inclusion": 0.0,
+                    "buzzword_score": 0.0,
+                }
+                card.update(
+                    deck_details.get(name, scryfall._empty_card_details())
+                )
+                hit = incl_index.get(analysis.normalize_name(name))
+                if hit:
+                    card["edhrec_inclusion"] = hit["inclusion"]
+                    card["edhrec_synergy"] = hit["synergy"]
+                card["features"] = analysis.card_features(card)
+                card["buzzword_score"] = analysis.score_card(card, weights)
+                card["in_edhrec"] = (
+                    analysis.normalize_name(name) in edhrec_names
+                )
+                deck_cards.append(card)
+
     return render_template(
         "commander.html",
         commander=info,
         commanders=commanders,
         edhrec_cards=edhrec_cards,
+        deck_cards=deck_cards,
         featured=featured,
         overall_pool=overall_pool,
         top_overall_n=TOP_OVERALL_N,
