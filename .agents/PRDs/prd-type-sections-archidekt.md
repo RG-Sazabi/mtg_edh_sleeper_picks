@@ -49,7 +49,7 @@ Unchanged from the base PRD: a single enthusiast Commander deckbuilder running t
 - [ ] A single **Top 10** Slept On section: the 10 highest-scoring picks overall (after active filters), fixed at 10.
 - [ ] Seven per-type sections, each ranking its type independently: **Creatures, Instants, Sorceries, Enchantments, Artifacts, Lands, Planeswalkers**.
 - [ ] Type sections rank independently of the Top 10 — a card may appear in both the Top 10 and its type section.
-- [ ] Multi-type cards (e.g. an artifact creature, an enchantment creature) appear in **every** matching type section.
+- [ ] Multi-type cards appear under every matching type section, **except creatures**: a creature (including an artifact/enchantment creature) slots **only** under Creatures; other multi-type cards still appear in every match (e.g. an artifact land under both Artifacts and Lands). _(Revised during #31 implementation — see Assumptions.)_
 - [ ] A single **shared N slider** controls the card count shown in every type section uniformly (Top 10 is exempt — always 10).
 - [ ] Existing filters (price cap, pauper toggle, inclusion cap) apply across the Top 10 and all type sections.
 - [ ] Cards whose types fall outside the seven (e.g. a bare Battle, or Kindred-only) are simply absent from the type sections; they remain eligible for the Top 10.
@@ -186,7 +186,7 @@ Unchanged from the base project. No new runtime dependencies anticipated.
 
 **Functional requirements:**
 - [ ] Slept On tab shows a Top 10 section plus Creatures / Instants / Sorceries / Enchantments / Artifacts / Lands / Planeswalkers sections.
-- [ ] A multi-type card appears in each matching type section and (if it qualifies) the Top 10.
+- [ ] A multi-type non-creature card appears in each matching type section (creatures slot only under Creatures) and, if it qualifies, the Top 10.
 - [ ] The shared N slider resizes all type sections together; Top 10 stays at 10.
 - [ ] Price cap, pauper toggle, and inclusion cap filter all sections correctly.
 - [ ] Diagnostics feature toggles re-score and re-rank every section live, and scores reconcile with the tooltip breakdown.
@@ -272,6 +272,7 @@ Unchanged from the base project. No new runtime dependencies anticipated.
 
 ## Assumptions Made
 
+- **As-built revision (#31, approved):** Creatures slot **only** under the Creatures section. An artifact/enchantment creature is treated as a creature (a creature is a creature to a deckbuilder) and is kept out of the Artifacts/Enchantments sections; other multi-type cards still appear under every matching section (e.g. an artifact land under both Artifacts and Lands). This intentionally overrides the original "appear in every matching section" requirement, at the user's direction. Also as-built: each section caps at `SLEPT_ON_SECTION_CAP` (100) drawn from the *full* scored list (replacing the planned global `SLEPT_ON_RENDER_CAP` of 200), and the per-grid filter/N-limit work originally scoped to #32 landed during #31.
 - **Land basics:** Basic lands carry no discriminating features and score ~0 under the current model, so they will not appear in the Lands section without extra work; the Lands section effectively shows nonbasic/utility lands. Flagged rather than adding an explicit basic-land filter. (Confirm if undesired.)
 - **Type set:** The seven sections are Creatures, Instants, Sorceries, Enchantments, Artifacts, Lands, Planeswalkers. Battle and Kindred/Tribal are intentionally excluded; such cards still compete for the Top 10. (Confirm.)
 - **Top 10 reflects active filters:** the Top 10 = the 10 highest-scoring cards that pass the current price/pauper/inclusion filters (not a static pre-filter top 10), so toggling pauper doesn't leave hidden cards in the Top 10.

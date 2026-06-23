@@ -33,9 +33,11 @@ logger = logging.getLogger(__name__)
 # same), so we drop them and keep only the core card types as features.
 _SUPERTYPES = {"Legendary", "Basic", "Snow", "World", "Ongoing", "Host", "Elite"}
 
-# Ordered (label, card-type) pairs for the per-type Slept On sections. Multi-type
-# cards appear under every matching label; types outside this list are absent from
-# the sections but remain eligible for the overall Top 10.
+# Ordered (label, card-type) pairs for the per-type Slept On sections. Creatures
+# slot only under Creatures (an artifact/enchantment creature is a creature to a
+# deckbuilder); other multi-type cards still appear under every matching label
+# (e.g. an artifact land under both Artifacts and Lands). Types outside this list
+# are absent from the sections but remain eligible for the overall Top 10.
 SLEPT_ON_TYPE_SECTIONS = [
     ("Creatures", "Creature"),
     ("Instants", "Instant"),
