@@ -408,6 +408,21 @@ nav.tabs {
   border-radius: 0.25rem;
 }
 
+/* "In deck" badge — a card present in the user's linked Archidekt deck. Same
+   shape/sizing as the EDHRec badge but a distinct teal accent so it reads apart
+   from "In EDHRec list". */
+.card-info .deck-badge {
+  align-self: flex-start;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #b8ece4;
+  background: #1d4f49;
+  padding: 0.08rem 0.35rem;
+  border-radius: 0.25rem;
+}
+
 /* ── Score breakdown tooltip (floats beside the hovered card) ──
    Appended to <body> and positioned via JS so it escapes the card's
    overflow:hidden + hover transform; shown by toggling .visible. */
