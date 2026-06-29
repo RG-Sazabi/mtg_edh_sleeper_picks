@@ -335,6 +335,8 @@ def commander(slug):
         selected_tag=tag,
         selected_budget=budget,
         selected_bracket=bracket,
+        selected_level=level,
+        include_types=include_types,
         available_tags=available_tags,
         budget_options=edhrec.BUDGET_OPTIONS,
         bracket_options=edhrec.BRACKET_OPTIONS,
