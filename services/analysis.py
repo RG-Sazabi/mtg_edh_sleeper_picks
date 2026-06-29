@@ -143,9 +143,14 @@ def compute_feature_weights(
     edhrec_cards: list[dict],
     min_support: int = 3,
     eps: float = 1e-4,
+    level: str = DEFAULT_LEVEL,
+    include_types: bool = False,
 ) -> dict[str, float]:
     """
     Build {feature -> weighted log-lift} from the commander's recommended cards.
+
+    Otag features are capped to the granularity ``level`` and type/subtype
+    features are included only when ``include_types`` is True (see card_features).
 
     For each recommended card we have:
         incl_c = i_{c,X}      = edhrec_inclusion
@@ -171,7 +176,8 @@ def compute_feature_weights(
     cards are dropped outright to suppress small-sample noise.
     """
     return {s["feature"]: s["weight"] for s in compute_feature_stats(
-        edhrec_cards, min_support=min_support, eps=eps
+        edhrec_cards, min_support=min_support, eps=eps,
+        level=level, include_types=include_types,
     )}
 
 
@@ -179,9 +185,14 @@ def compute_feature_stats(
     edhrec_cards: list[dict],
     min_support: int = 3,
     eps: float = 1e-4,
+    level: str = DEFAULT_LEVEL,
+    include_types: bool = False,
 ) -> list[dict]:
     """
     Full per-feature breakdown behind the scoring, for the diagnostics view.
+
+    Otag features are capped to the granularity ``level`` and type/subtype
+    features are included only when ``include_types`` is True (see card_features).
 
     Returns a list of dicts (sorted by ``weight`` descending), one per qualifying
     feature::
@@ -210,7 +221,7 @@ def compute_feature_stats(
         forced = card.get("forced_inclusion")
         incl_c = max(forced if forced is not None else incl, eps)
         base_c = max(incl - syn, eps)  # baseline inclusion for this card's color pool
-        for feat in card_features(card):
+        for feat in card_features(card, level=level, include_types=include_types):
             incl_sum[feat] = incl_sum.get(feat, 0.0) + incl_c
             base_sum[feat] = base_sum.get(feat, 0.0) + base_c
             support[feat] = support.get(feat, 0) + 1
