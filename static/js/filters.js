@@ -21,6 +21,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // ── Include-types toggle: a SERVER recompute (changes the scored feature set),
+  // not a display mute. Checked -> ?include_types=true and reload; unchecked ->
+  // drop the param (route default is types-off). Distinct from the Diagnostics
+  // tab's client-only "Ignore types/subtypes" mutes (bindKindMute below).
+  const includeTypesToggle = document.getElementById('include-types-toggle');
+  if (includeTypesToggle) {
+    includeTypesToggle.addEventListener('change', () => {
+      const url = new URL(window.location.href);
+      if (includeTypesToggle.checked) url.searchParams.set('include_types', 'true');
+      else url.searchParams.delete('include_types');
+      window.location.assign(url.toString());
+    });
+  }
+
   const edhrecCards = document.querySelectorAll('#edhrec-section .card-item');
   // The overall Top 10 grid (#slept-on-grid) plus the seven per-type sections,
   // all sharing .slept-on-grid. Filters and the N limit apply to every grid: the
@@ -48,8 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const muted = new Set();
 
   // Mirrors services/analysis.score_breakdown: top contributors to a card's
-  // displayed score. Muted features contribute 0 and are dropped, so the list
-  // reconciles with the (post-mute) score shown in .js-score.
+  // displayed score, scored ONLY from the card's server-emitted (already
+  // level/type-capped, issue #41/#42) data-features against the level's WEIGHTS.
+  // No leaf-tag expansion here, so the tooltip can't list a tag the card no
+  // longer scores on at the current level. Muted features contribute 0 and drop,
+  // so the list reconciles with the (post-mute) score shown in .js-score.
   const TOOLTIP_TOP_N = 5;
   function topContributors(card, n = TOOLTIP_TOP_N) {
     const feats = card.dataset.features ? card.dataset.features.split('|') : [];
