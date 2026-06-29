@@ -9,14 +9,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Guard: only run on the commander page (controls may not exist on index/error pages)
   if (!nSlider) return;
 
-  // ── Scope selectors (theme/budget/bracket): a change updates that query param
-  // on the current URL and reloads, so the server re-runs the scope logic
-  // (which set is displayed, and — for theme only — re-scores Slept On).
+  // Client-only filter state (price/pauper/N/inclusion) and scroll position are
+  // lost on the full reload that a scope/level/include-types change triggers, so
+  // we stash them in sessionStorage and restore on the next load — same approach
+  // as the active tab below. saveScroll() is called right before each reload.
+  const FILTER_KEY = 'sleptOnFilters';
+  const SCROLL_KEY = 'sleptOnScrollY';
+  function saveScroll() { sessionStorage.setItem(SCROLL_KEY, window.scrollY); }
+
+  // ── Scope selectors (theme/budget/bracket/level): a change updates that query
+  // param on the current URL and reloads, so the server re-runs the scope logic
+  // (which set is displayed, and — for theme/level — re-scores Slept On).
   document.querySelectorAll('select[data-param]').forEach(sel => {
     sel.addEventListener('change', () => {
       const url = new URL(window.location.href);
       if (sel.value) url.searchParams.set(sel.dataset.param, sel.value);
       else url.searchParams.delete(sel.dataset.param);
+      saveScroll();
       window.location.assign(url.toString());
     });
   });
@@ -31,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const url = new URL(window.location.href);
       if (includeTypesToggle.checked) url.searchParams.set('include_types', 'true');
       else url.searchParams.delete('include_types');
+      saveScroll();
       window.location.assign(url.toString());
     });
   }
@@ -198,6 +208,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     });
+
+    saveFilters();
+  }
+
+  // Persist the client-only filter controls so a scope/level reload restores them
+  // instead of snapping back to the HTML defaults.
+  function saveFilters() {
+    sessionStorage.setItem(FILTER_KEY, JSON.stringify({
+      price: priceCapInput.value,
+      pauper: pauperToggle.checked,
+      n: nSlider.value,
+      inclusion: inclusionSlider.value,
+    }));
+  }
+
+  // Apply any saved filter state back onto the controls. Called before the first
+  // applyFilters() so the restored values drive the initial render.
+  function restoreFilters() {
+    const raw = sessionStorage.getItem(FILTER_KEY);
+    if (!raw) return;
+    let s;
+    try { s = JSON.parse(raw); } catch (e) { return; }
+    if (typeof s.price === 'string') priceCapInput.value = s.price;
+    if (typeof s.pauper === 'boolean') pauperToggle.checked = s.pauper;
+    if (s.n != null) nSlider.value = s.n;
+    if (s.inclusion != null) inclusionSlider.value = s.inclusion;
   }
 
   // Attach listeners
@@ -228,7 +264,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Apply defaults on page load
+  // Restore any saved filter state, then apply on page load.
+  restoreFilters();
   applyFilters();
 
   // ── Tabs: switch the visible panel ──
@@ -260,6 +297,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Restore the previously active tab after a reload.
   const savedTab = sessionStorage.getItem(TAB_KEY);
   if (savedTab) activateTab(savedTab);
+
+  // Restore the scroll position saved just before a scope/level reload, then
+  // clear it so an ordinary navigation (new commander, back button) starts at
+  // the top. Done after the tab/filters are restored so the layout matches.
+  const savedScroll = sessionStorage.getItem(SCROLL_KEY);
+  if (savedScroll !== null) {
+    sessionStorage.removeItem(SCROLL_KEY);
+    window.scrollTo(0, parseInt(savedScroll, 10) || 0);
+  }
 
   // ── Click a card to copy its name to the clipboard ──
   const toast = document.getElementById('copy-toast');
