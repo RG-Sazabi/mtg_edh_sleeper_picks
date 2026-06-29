@@ -383,14 +383,45 @@ def ensure_loaded() -> None:
         if cards_path:
             _build_card_index(cards_path)
         # Indices were (re)built; drop any cached derived view so it rebuilds.
+        # (_tag_depth / _tag_parents are cleared+rebuilt inside _build_otag_index,
+        # like _otag_index, so only the lru_cache of ancestors needs clearing.)
         _commander_names = None
         _partner_pools = None
+        ancestors_at_depth.cache_clear()
         _loaded = True
 
 
 def otags_for(oracle_id: str) -> list[str]:
     ensure_loaded()
     return _otag_index.get(oracle_id, [])
+
+
+def tag_depth(slug: str) -> int:
+    """Depth of an oracle-tag slug in the hierarchy (root = depth 1).
+    Unknown slugs default to 1 (treated as already-coarse / kept as-is)."""
+    ensure_loaded()
+    return _tag_depth.get(slug, 1)
+
+
+@functools.lru_cache(maxsize=None)
+def ancestors_at_depth(slug: str, n: int) -> frozenset[str]:
+    """All level-``n`` ancestors of ``slug`` (the parent graph is a DAG, so
+    there may be several). Includes ``slug`` itself when its own depth == n.
+    Cycle-guarded; cached for cheap repeated per-card lookups during scoring.
+    Cache is cleared on index reload in ensure_loaded()."""
+    ensure_loaded()
+    result: set[str] = set()
+    stack: list[str] = [slug]
+    seen: set[str] = set()
+    while stack:
+        cur = stack.pop()
+        if cur in seen:            # cycle / DAG re-convergence guard
+            continue
+        seen.add(cur)
+        if _tag_depth.get(cur, 1) == n:
+            result.add(cur)
+        stack.extend(_tag_parents.get(cur, []))
+    return frozenset(result)
 
 
 def card_record(name: str) -> dict | None:
