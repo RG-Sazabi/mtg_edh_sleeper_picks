@@ -60,3 +60,23 @@ Generated from: `.agents/PRDs/prd-type-sections-archidekt.md`
 Two independent tracks that can proceed in parallel:
 - **Type sections:** **#31** (server + template) → **#32** (client filtering / shared N slider).
 - **Archidekt:** **#33** (deck ingestion + commander detection) → **#34** (deck-scoped scoring + "in deck" badge). #34 carries the key P_X/P_B scoring-formulation decision.
+
+## Batch 5 — Tag-granularity controls for Slept On scoring (added 2026-06-28)
+
+Generated from: `.agents/PRDs/prd-tag-granularity-controls.md`
+
+| # | Issue | Title | URL |
+|---|-------|-------|-----|
+| 21 | #39 | Add oracle-tag hierarchy index (depth + level-N ancestors) to bulk.py | https://github.com/RG-Sazabi/mtg_edh_sleeper_picks/issues/39 |
+| 22 | #40 | Make scoring level-aware: cap oracle tags to a chosen depth + type/subtype toggle (analysis.py) | https://github.com/RG-Sazabi/mtg_edh_sleeper_picks/issues/40 |
+| 23 | #41 | Wire level + include-types controls through the commander route (app.py) | https://github.com/RG-Sazabi/mtg_edh_sleeper_picks/issues/41 |
+| 24 | #42 | Add named granularity selector + type toggle UI and sync diagnostics/tooltip | https://github.com/RG-Sazabi/mtg_edh_sleeper_picks/issues/42 |
+
+### Suggested sequencing (Batch 5)
+Strict dependency chain — build in order:
+1. **#39** — tag hierarchy index (depth + level-N ancestors) in `bulk.py`; data foundation.
+2. **#40** — level-aware feature generation (cap-at-N rollup + type toggle) in `analysis.py`.
+3. **#41** — route wiring: read `?level` / `?include_types`, recompute weights server-side.
+4. **#42** — named UI controls (Broad / Balanced / Fine) + diagnostics/tooltip sync.
+
+Key decisions baked in: cap-at-level (no signal dropped) · keep-all level-N ancestors (DAG-safe) · types/subtypes off by default · functional-only (no `art_tags` toggle) · `cycle-*` retained (it's functional). Level names Broad/Balanced/Fine (depths 2/3/4) are an assumption — UI-only, rename freely.
