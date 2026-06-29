@@ -218,9 +218,13 @@ def commander(slug):
         exclude_names.add(analysis.normalize_name(cm["name"]))
     # Weights come strictly from the scoring view (tag-only or base) so that
     # budget/bracket never move scores; only a tag rescopes the feature weights.
-    feature_stats = analysis.compute_feature_stats(scoring_cards)
+    feature_stats = analysis.compute_feature_stats(
+        scoring_cards, level=level, include_types=include_types
+    )
     weights = {s["feature"]: s["weight"] for s in feature_stats}
-    slept_on = analysis.score_cards(color_pool, weights, exclude_names)
+    slept_on = analysis.score_cards(
+        color_pool, weights, exclude_names, level=level, include_types=include_types
+    )
 
     # Score the EDHRec recommendations on the same scale so the EDHRec tab is
     # directly comparable to Slept On. We do NOT re-rank them (they stay grouped
