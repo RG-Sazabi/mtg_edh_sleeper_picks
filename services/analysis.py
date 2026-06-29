@@ -108,29 +108,34 @@ def _type_and_sub_features(type_line: str) -> set[str]:
     return feats
 
 
-def card_features(card: dict) -> list[str]:
+def card_features(
+    card: dict,
+    level: str = DEFAULT_LEVEL,
+    include_types: bool = False,
+) -> list[str]:
     """
-    Namespaced feature list for a card: types, subtypes, and oracle tags.
+    Namespaced feature list for a card: oracle tags (capped to a granularity
+    ``level``) plus, when ``include_types`` is True, its flat card types and
+    subtypes.
 
-    Example "Legendary Creature — Phyrexian Horror" with otags ["proliferate"]
-    -> ["type:Creature", "sub:Phyrexian", "sub:Horror", "otag:proliferate"].
-    Handles split/DFC type lines ("... // ...") by unioning both faces.
+    Oracle tags are collapsed to the chosen level's hierarchy depth N
+    (LEVEL_DEPTHS; unknown level -> DEFAULT_LEVEL): a tag at depth <= N is kept
+    as-is; a deeper tag is replaced by ALL of its level-N ancestors (the parent
+    graph is a DAG, so there may be several) via bulk.ancestors_at_depth. No
+    tagging is ever dropped. The level does NOT apply to type/subtype features,
+    which are flat and emitted unchanged only when include_types is True
+    (default off, so oracle-tag themes drive scoring).
     """
     feats: set[str] = set()
-    type_line = card.get("type_line", "") or ""
-    for face in type_line.split("//"):
-        # type_line format: "<supertypes> <types> — <subtypes>"
-        if "—" in face:
-            left, right = face.split("—", 1)
-        else:
-            left, right = face, ""
-        for word in left.split():
-            if word not in _SUPERTYPES:
-                feats.add(f"type:{word}")
-        for word in right.split():
-            feats.add(f"sub:{word}")
+    if include_types:
+        feats |= _type_and_sub_features(card.get("type_line", "") or "")
+    depth = LEVEL_DEPTHS.get(level, LEVEL_DEPTHS[DEFAULT_LEVEL])
     for tag in card.get("otags", []) or []:
-        feats.add(f"otag:{tag}")
+        if bulk.tag_depth(tag) <= depth:
+            feats.add(f"otag:{tag}")
+        else:
+            for anc in bulk.ancestors_at_depth(tag, depth):
+                feats.add(f"otag:{anc}")
     return list(feats)
 
 
