@@ -274,7 +274,9 @@ def commander(slug):
         if id(c) in seen_ids:
             continue
         seen_ids.add(id(c))
-        c["features"] = analysis.card_features(c)
+        c["features"] = analysis.card_features(
+            c, level=level, include_types=include_types
+        )
         c["in_edhrec"] = analysis.normalize_name(c["name"]) in edhrec_names
         c["in_deck"] = analysis.normalize_name(c["name"]) in deck_names
 
@@ -306,8 +308,12 @@ def commander(slug):
             if hit:
                 card["edhrec_inclusion"] = hit["inclusion"]
                 card["edhrec_synergy"] = hit["synergy"]
-            card["features"] = analysis.card_features(card)
-            card["buzzword_score"] = analysis.score_card(card, weights)
+            card["features"] = analysis.card_features(
+                card, level=level, include_types=include_types
+            )
+            card["buzzword_score"] = analysis.score_card(
+                card, weights, level=level, include_types=include_types
+            )
             card["in_edhrec"] = (
                 analysis.normalize_name(name) in edhrec_names
             )
