@@ -18,6 +18,7 @@ Bulk files are reference data (the full Scryfall catalog), not per-request cache
 and are intentionally persisted to disk. See CLAUDE.md "Scryfall Rate Limiting".
 """
 
+import functools
 import logging
 import os
 import threading
@@ -77,6 +78,10 @@ _load_lock = threading.Lock()
 _commander_names: list[str] | None = None
 # Memoized {partner_kind -> sorted [front-face name]}; rebuilt when indices reload.
 _partner_pools: dict[str, list[str]] | None = None
+# Oracle-tag hierarchy, derived from oracle_tags `parent_ids`. Slug-keyed
+# (slugs are unique in the bulk); rebuilt when indices reload.
+_tag_depth: dict[str, int] = {}      # slug -> depth (root = 1)
+_tag_parents: dict[str, list[str]] = {}  # slug -> parent slugs (DAG edges)
 
 
 def _bulk_path(kind: str) -> str:
