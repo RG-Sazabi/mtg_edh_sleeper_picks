@@ -89,6 +89,25 @@ def normalize_name(name: str) -> str:
     return (name or "").split(" // ", 1)[0].strip().casefold()
 
 
+def _type_and_sub_features(type_line: str) -> set[str]:
+    """type:/sub: features from a (possibly split/DFC) type line. Pure.
+    Single source of truth for type-line parsing, shared by card_features
+    (gated by include_types) and partition_by_type (always — sectioning is
+    independent of the scoring type toggle)."""
+    feats: set[str] = set()
+    for face in (type_line or "").split("//"):
+        if "—" in face:
+            left, right = face.split("—", 1)
+        else:
+            left, right = face, ""
+        for word in left.split():
+            if word not in _SUPERTYPES:
+                feats.add(f"type:{word}")
+        for word in right.split():
+            feats.add(f"sub:{word}")
+    return feats
+
+
 def card_features(card: dict) -> list[str]:
     """
     Namespaced feature list for a card: types, subtypes, and oracle tags.
@@ -297,7 +316,10 @@ def partition_by_type(cards: list[dict], cap: int | None = None) -> list[dict]:
         label: [] for label, _ in SLEPT_ON_TYPE_SECTIONS
     }
     for card in cards:
-        types = {f for f in card_features(card) if f.startswith("type:")}
+        types = {
+            f for f in _type_and_sub_features(card.get("type_line", "") or "")
+            if f.startswith("type:")
+        }
         is_creature = "type:Creature" in types
         for label, type_name in SLEPT_ON_TYPE_SECTIONS:
             if f"type:{type_name}" not in types:
