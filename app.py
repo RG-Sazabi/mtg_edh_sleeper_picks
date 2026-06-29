@@ -230,16 +230,24 @@ def commander(slug):
     # directly comparable to Slept On. We do NOT re-rank them (they stay grouped
     # by category); features power the client-side re-score on Diagnostics toggles.
     for c in edhrec_cards:
-        c["features"] = analysis.card_features(c)
-        c["buzzword_score"] = analysis.score_card(c, weights)
+        c["features"] = analysis.card_features(
+            c, level=level, include_types=include_types
+        )
+        c["buzzword_score"] = analysis.score_card(
+            c, weights, level=level, include_types=include_types
+        )
         c["in_deck"] = analysis.normalize_name(c["name"]) in deck_names
 
     # Display-score the featured cards on the same weights (for the EDHRec tab's
     # featured rows). They are display-only — never appended to edhrec_cards and
     # never passed to compute_feature_stats/score_cards.
     for c in featured_cards:
-        c["features"] = analysis.card_features(c)
-        c["buzzword_score"] = analysis.score_card(c, weights)
+        c["features"] = analysis.card_features(
+            c, level=level, include_types=include_types
+        )
+        c["buzzword_score"] = analysis.score_card(
+            c, weights, level=level, include_types=include_types
+        )
         c["in_deck"] = analysis.normalize_name(c["name"]) in deck_names
 
     # Presentation-only split (issue #31/#32): one overall Top 10 plus the seven
