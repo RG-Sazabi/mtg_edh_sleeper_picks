@@ -298,16 +298,7 @@ nav.tabs {
 .diag-table th:first-child { text-align: center; width: 2.2rem; }
 .weight-neg td { color: #8a7f8a; }
 
-/* Bulk per-kind "Ignore types" / "Ignore subtypes" controls above the table. */
-.mute-kind-controls { display: flex; gap: 1rem; margin: 0.5rem 0; flex-wrap: wrap; }
-.mute-kind-control {
-  font-size: 0.85rem;
-  color: #aac4e8;
-  cursor: pointer;
-}
-
-.diag-table input[type="checkbox"],
-.mute-kind { accent-color: #e94560; width: 16px; height: 16px; cursor: pointer; }
+.diag-table input[type="checkbox"] { accent-color: #e94560; width: 16px; height: 16px; cursor: pointer; }
 
 /* A muted feature is dimmed with its characteristic struck through. */
 .diag-table tr.muted { opacity: 0.45; }

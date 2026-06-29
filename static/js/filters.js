@@ -9,17 +9,41 @@ document.addEventListener('DOMContentLoaded', () => {
   // Guard: only run on the commander page (controls may not exist on index/error pages)
   if (!nSlider) return;
 
-  // ── Scope selectors (theme/budget/bracket): a change updates that query param
-  // on the current URL and reloads, so the server re-runs the scope logic
-  // (which set is displayed, and — for theme only — re-scores Slept On).
+  // Client-only filter state (price/pauper/N/inclusion) and scroll position are
+  // lost on the full reload that a scope/level/include-types change triggers, so
+  // we stash them in sessionStorage and restore on the next load — same approach
+  // as the active tab below. saveScroll() is called right before each reload.
+  const FILTER_KEY = 'sleptOnFilters';
+  const SCROLL_KEY = 'sleptOnScrollY';
+  function saveScroll() { sessionStorage.setItem(SCROLL_KEY, window.scrollY); }
+
+  // ── Scope selectors (theme/budget/bracket/level): a change updates that query
+  // param on the current URL and reloads, so the server re-runs the scope logic
+  // (which set is displayed, and — for theme/level — re-scores Slept On).
   document.querySelectorAll('select[data-param]').forEach(sel => {
     sel.addEventListener('change', () => {
       const url = new URL(window.location.href);
       if (sel.value) url.searchParams.set(sel.dataset.param, sel.value);
       else url.searchParams.delete(sel.dataset.param);
+      saveScroll();
       window.location.assign(url.toString());
     });
   });
+
+  // ── Include-types toggle: a SERVER recompute (changes the scored feature set),
+  // not a display mute. Checked -> ?include_types=true and reload; unchecked ->
+  // drop the param (route default is types-off). Distinct from the Diagnostics
+  // tab's per-row feature mutes, which only hide a row from the displayed score.
+  const includeTypesToggle = document.getElementById('include-types-toggle');
+  if (includeTypesToggle) {
+    includeTypesToggle.addEventListener('change', () => {
+      const url = new URL(window.location.href);
+      if (includeTypesToggle.checked) url.searchParams.set('include_types', 'true');
+      else url.searchParams.delete('include_types');
+      saveScroll();
+      window.location.assign(url.toString());
+    });
+  }
 
   const edhrecCards = document.querySelectorAll('#edhrec-section .card-item');
   // The overall Top 10 grid (#slept-on-grid) plus the seven per-type sections,
@@ -48,8 +72,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const muted = new Set();
 
   // Mirrors services/analysis.score_breakdown: top contributors to a card's
-  // displayed score. Muted features contribute 0 and are dropped, so the list
-  // reconciles with the (post-mute) score shown in .js-score.
+  // displayed score, scored ONLY from the card's server-emitted (already
+  // level/type-capped, issue #41/#42) data-features against the level's WEIGHTS.
+  // No leaf-tag expansion here, so the tooltip can't list a tag the card no
+  // longer scores on at the current level. Muted features contribute 0 and drop,
+  // so the list reconciles with the (post-mute) score shown in .js-score.
   const TOOLTIP_TOP_N = 5;
   function topContributors(card, n = TOOLTIP_TOP_N) {
     const feats = card.dataset.features ? card.dataset.features.split('|') : [];
@@ -181,6 +208,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     });
+
+    saveFilters();
+  }
+
+  // Persist the client-only filter controls so a scope/level reload restores them
+  // instead of snapping back to the HTML defaults.
+  function saveFilters() {
+    sessionStorage.setItem(FILTER_KEY, JSON.stringify({
+      price: priceCapInput.value,
+      pauper: pauperToggle.checked,
+      n: nSlider.value,
+      inclusion: inclusionSlider.value,
+    }));
+  }
+
+  // Apply any saved filter state back onto the controls. Called before the first
+  // applyFilters() so the restored values drive the initial render.
+  function restoreFilters() {
+    const raw = sessionStorage.getItem(FILTER_KEY);
+    if (!raw) return;
+    let s;
+    try { s = JSON.parse(raw); } catch (e) { return; }
+    if (typeof s.price === 'string') priceCapInput.value = s.price;
+    if (typeof s.pauper === 'boolean') pauperToggle.checked = s.pauper;
+    if (s.n != null) nSlider.value = s.n;
+    if (s.inclusion != null) inclusionSlider.value = s.inclusion;
   }
 
   // Attach listeners
@@ -203,25 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
     applyFilters();
   }
 
-  // Bulk: mute/unmute every feature of one kind (type:* or sub:*), syncing the
-  // per-row checkboxes, then re-score. Each kind toggles independently.
-  function bindKindMute(checkboxId, prefix) {
-    const box = document.getElementById(checkboxId);
-    if (!box) return;
-    box.addEventListener('change', () => {
-      const mute = box.checked;
-      featureToggles.forEach(cb => {
-        if (cb.dataset.feature.startsWith(prefix)) {
-          cb.checked = !mute;
-          setMuted(cb.dataset.feature, mute, cb.closest('tr'));
-        }
-      });
-      rescore();
-    });
-  }
-  bindKindMute('mute-types', 'type:');
-  bindKindMute('mute-subs', 'sub:');
-
   // Per-row: mute/unmute a single feature (checked = on/contributing).
   featureToggles.forEach(cb => {
     cb.addEventListener('change', () => {
@@ -230,7 +264,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Apply defaults on page load
+  // Restore any saved filter state, then apply on page load.
+  restoreFilters();
   applyFilters();
 
   // ── Tabs: switch the visible panel ──
@@ -262,6 +297,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Restore the previously active tab after a reload.
   const savedTab = sessionStorage.getItem(TAB_KEY);
   if (savedTab) activateTab(savedTab);
+
+  // Restore the scroll position saved just before a scope/level reload, then
+  // clear it so an ordinary navigation (new commander, back button) starts at
+  // the top. Done after the tab/filters are restored so the layout matches.
+  const savedScroll = sessionStorage.getItem(SCROLL_KEY);
+  if (savedScroll !== null) {
+    sessionStorage.removeItem(SCROLL_KEY);
+    window.scrollTo(0, parseInt(savedScroll, 10) || 0);
+  }
 
   // ── Click a card to copy its name to the clipboard ──
   const toast = document.getElementById('copy-toast');
