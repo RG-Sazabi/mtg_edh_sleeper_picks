@@ -39,17 +39,28 @@ the lift stays meaningful. We deliberately do NOT overwrite the displayed
 keep visible. Cards without ``forced_inclusion`` behave exactly as before, so the
 non-deck flow is unchanged.
 
-All functions here are pure: no I/O, no API calls.
+All functions here are pure: no network/HTTP/file I/O, no API calls. The otag
+rollup consults the pure ``bulk`` hierarchy lookups (``tag_depth`` /
+``ancestors_at_depth``), which are deterministic over the already-loaded index —
+``analysis`` itself still performs no network/HTTP/file I/O.
 """
 
 import logging
 from math import log
+
+from services import bulk
 
 logger = logging.getLogger(__name__)
 
 # Supertypes are not discriminating features (almost every legendary scores the
 # same), so we drop them and keep only the core card types as features.
 _SUPERTYPES = {"Legendary", "Basic", "Snow", "World", "Ongoing", "Host", "Elite"}
+
+# Oracle-tag granularity (PRD: tag-granularity controls). The UI exposes names
+# only; each maps to a hierarchy depth (root = 1) used to CAP otag features.
+# Levels are restricted to 2-4 by design (depth 1 too coarse, 5-7 too sparse).
+LEVEL_DEPTHS: dict[str, int] = {"Broad": 2, "Balanced": 3, "Fine": 4}
+DEFAULT_LEVEL = "Balanced"
 
 # Ordered (label, card-type) pairs for the per-type Slept On sections. Creatures
 # slot only under Creatures (an artifact/enchantment creature is a creature to a
@@ -78,18 +89,13 @@ def normalize_name(name: str) -> str:
     return (name or "").split(" // ", 1)[0].strip().casefold()
 
 
-def card_features(card: dict) -> list[str]:
-    """
-    Namespaced feature list for a card: types, subtypes, and oracle tags.
-
-    Example "Legendary Creature — Phyrexian Horror" with otags ["proliferate"]
-    -> ["type:Creature", "sub:Phyrexian", "sub:Horror", "otag:proliferate"].
-    Handles split/DFC type lines ("... // ...") by unioning both faces.
-    """
+def _type_and_sub_features(type_line: str) -> set[str]:
+    """type:/sub: features from a (possibly split/DFC) type line. Pure.
+    Single source of truth for type-line parsing, shared by card_features
+    (gated by include_types) and partition_by_type (always — sectioning is
+    independent of the scoring type toggle)."""
     feats: set[str] = set()
-    type_line = card.get("type_line", "") or ""
-    for face in type_line.split("//"):
-        # type_line format: "<supertypes> <types> — <subtypes>"
+    for face in (type_line or "").split("//"):
         if "—" in face:
             left, right = face.split("—", 1)
         else:
@@ -99,8 +105,37 @@ def card_features(card: dict) -> list[str]:
                 feats.add(f"type:{word}")
         for word in right.split():
             feats.add(f"sub:{word}")
+    return feats
+
+
+def card_features(
+    card: dict,
+    level: str = DEFAULT_LEVEL,
+    include_types: bool = False,
+) -> list[str]:
+    """
+    Namespaced feature list for a card: oracle tags (capped to a granularity
+    ``level``) plus, when ``include_types`` is True, its flat card types and
+    subtypes.
+
+    Oracle tags are collapsed to the chosen level's hierarchy depth N
+    (LEVEL_DEPTHS; unknown level -> DEFAULT_LEVEL): a tag at depth <= N is kept
+    as-is; a deeper tag is replaced by ALL of its level-N ancestors (the parent
+    graph is a DAG, so there may be several) via bulk.ancestors_at_depth. No
+    tagging is ever dropped. The level does NOT apply to type/subtype features,
+    which are flat and emitted unchanged only when include_types is True
+    (default off, so oracle-tag themes drive scoring).
+    """
+    feats: set[str] = set()
+    if include_types:
+        feats |= _type_and_sub_features(card.get("type_line", "") or "")
+    depth = LEVEL_DEPTHS.get(level, LEVEL_DEPTHS[DEFAULT_LEVEL])
     for tag in card.get("otags", []) or []:
-        feats.add(f"otag:{tag}")
+        if bulk.tag_depth(tag) <= depth:
+            feats.add(f"otag:{tag}")
+        else:
+            for anc in bulk.ancestors_at_depth(tag, depth):
+                feats.add(f"otag:{anc}")
     return list(feats)
 
 
@@ -108,9 +143,14 @@ def compute_feature_weights(
     edhrec_cards: list[dict],
     min_support: int = 3,
     eps: float = 1e-4,
+    level: str = DEFAULT_LEVEL,
+    include_types: bool = False,
 ) -> dict[str, float]:
     """
     Build {feature -> weighted log-lift} from the commander's recommended cards.
+
+    Otag features are capped to the granularity ``level`` and type/subtype
+    features are included only when ``include_types`` is True (see card_features).
 
     For each recommended card we have:
         incl_c = i_{c,X}      = edhrec_inclusion
@@ -136,7 +176,8 @@ def compute_feature_weights(
     cards are dropped outright to suppress small-sample noise.
     """
     return {s["feature"]: s["weight"] for s in compute_feature_stats(
-        edhrec_cards, min_support=min_support, eps=eps
+        edhrec_cards, min_support=min_support, eps=eps,
+        level=level, include_types=include_types,
     )}
 
 
@@ -144,9 +185,14 @@ def compute_feature_stats(
     edhrec_cards: list[dict],
     min_support: int = 3,
     eps: float = 1e-4,
+    level: str = DEFAULT_LEVEL,
+    include_types: bool = False,
 ) -> list[dict]:
     """
     Full per-feature breakdown behind the scoring, for the diagnostics view.
+
+    Otag features are capped to the granularity ``level`` and type/subtype
+    features are included only when ``include_types`` is True (see card_features).
 
     Returns a list of dicts (sorted by ``weight`` descending), one per qualifying
     feature::
@@ -175,7 +221,7 @@ def compute_feature_stats(
         forced = card.get("forced_inclusion")
         incl_c = max(forced if forced is not None else incl, eps)
         base_c = max(incl - syn, eps)  # baseline inclusion for this card's color pool
-        for feat in card_features(card):
+        for feat in card_features(card, level=level, include_types=include_types):
             incl_sum[feat] = incl_sum.get(feat, 0.0) + incl_c
             base_sum[feat] = base_sum.get(feat, 0.0) + base_c
             support[feat] = support.get(feat, 0) + 1
@@ -206,6 +252,8 @@ def score_breakdown(
     card: dict,
     weights: dict[str, float],
     top_n: int | None = None,
+    level: str = DEFAULT_LEVEL,
+    include_types: bool = False,
 ) -> list[tuple[str, float]]:
     """
     The per-feature contributions behind a card's Buzzword Score: a list of
@@ -215,24 +263,37 @@ def score_breakdown(
     ``score_card`` and mirrored by ``static/js/filters.js`` for the hover
     tooltip. Pure; no mutation.
     """
-    contribs = [(f, weights[f]) for f in card_features(card) if f in weights]
+    contribs = [
+        (f, weights[f])
+        for f in card_features(card, level=level, include_types=include_types)
+        if f in weights
+    ]
     contribs.sort(key=lambda c: abs(c[1]), reverse=True)
     return contribs[:top_n] if top_n else contribs
 
 
-def score_card(card: dict, weights: dict[str, float]) -> float:
+def score_card(
+    card: dict,
+    weights: dict[str, float],
+    level: str = DEFAULT_LEVEL,
+    include_types: bool = False,
+) -> float:
     """
     Feature-lift score for a single card: the sum of the inclusion-weighted
     log-lifts (``weights``) of the features it carries. Features absent from
     ``weights`` (below ``min_support``) contribute nothing. Pure; no mutation.
     """
-    return sum(c for _, c in score_breakdown(card, weights))
+    return sum(c for _, c in score_breakdown(
+        card, weights, level=level, include_types=include_types
+    ))
 
 
 def score_cards(
     color_pool: list[dict],
     weights: dict[str, float],
     exclude_names: set[str],
+    level: str = DEFAULT_LEVEL,
+    include_types: bool = False,
 ) -> list[dict]:
     """
     Score each color-pool card as the sum of the inclusion-weighted log-lifts of
@@ -252,7 +313,7 @@ def score_cards(
     for card in color_pool:
         if normalize_name(card["name"]) in exclude_names:
             continue
-        score = score_card(card, weights)
+        score = score_card(card, weights, level=level, include_types=include_types)
         if score > 0:
             card = dict(card)
             card["buzzword_score"] = score
@@ -286,7 +347,10 @@ def partition_by_type(cards: list[dict], cap: int | None = None) -> list[dict]:
         label: [] for label, _ in SLEPT_ON_TYPE_SECTIONS
     }
     for card in cards:
-        types = {f for f in card_features(card) if f.startswith("type:")}
+        types = {
+            f for f in _type_and_sub_features(card.get("type_line", "") or "")
+            if f.startswith("type:")
+        }
         is_creature = "type:Creature" in types
         for label, type_name in SLEPT_ON_TYPE_SECTIONS:
             if f"type:{type_name}" not in types:
