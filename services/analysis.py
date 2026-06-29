@@ -39,17 +39,28 @@ the lift stays meaningful. We deliberately do NOT overwrite the displayed
 keep visible. Cards without ``forced_inclusion`` behave exactly as before, so the
 non-deck flow is unchanged.
 
-All functions here are pure: no I/O, no API calls.
+All functions here are pure: no network/HTTP/file I/O, no API calls. The otag
+rollup consults the pure ``bulk`` hierarchy lookups (``tag_depth`` /
+``ancestors_at_depth``), which are deterministic over the already-loaded index —
+``analysis`` itself still performs no network/HTTP/file I/O.
 """
 
 import logging
 from math import log
+
+from services import bulk
 
 logger = logging.getLogger(__name__)
 
 # Supertypes are not discriminating features (almost every legendary scores the
 # same), so we drop them and keep only the core card types as features.
 _SUPERTYPES = {"Legendary", "Basic", "Snow", "World", "Ongoing", "Host", "Elite"}
+
+# Oracle-tag granularity (PRD: tag-granularity controls). The UI exposes names
+# only; each maps to a hierarchy depth (root = 1) used to CAP otag features.
+# Levels are restricted to 2-4 by design (depth 1 too coarse, 5-7 too sparse).
+LEVEL_DEPTHS: dict[str, int] = {"Broad": 2, "Balanced": 3, "Fine": 4}
+DEFAULT_LEVEL = "Balanced"
 
 # Ordered (label, card-type) pairs for the per-type Slept On sections. Creatures
 # slot only under Creatures (an artifact/enchantment creature is a creature to a
