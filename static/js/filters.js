@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Include-types toggle: a SERVER recompute (changes the scored feature set),
   // not a display mute. Checked -> ?include_types=true and reload; unchecked ->
   // drop the param (route default is types-off). Distinct from the Diagnostics
-  // tab's client-only "Ignore types/subtypes" mutes (bindKindMute below).
+  // tab's per-row feature mutes, which only hide a row from the displayed score.
   const includeTypesToggle = document.getElementById('include-types-toggle');
   if (includeTypesToggle) {
     includeTypesToggle.addEventListener('change', () => {
@@ -219,25 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
     reorderSleptOnGrids();
     applyFilters();
   }
-
-  // Bulk: mute/unmute every feature of one kind (type:* or sub:*), syncing the
-  // per-row checkboxes, then re-score. Each kind toggles independently.
-  function bindKindMute(checkboxId, prefix) {
-    const box = document.getElementById(checkboxId);
-    if (!box) return;
-    box.addEventListener('change', () => {
-      const mute = box.checked;
-      featureToggles.forEach(cb => {
-        if (cb.dataset.feature.startsWith(prefix)) {
-          cb.checked = !mute;
-          setMuted(cb.dataset.feature, mute, cb.closest('tr'));
-        }
-      });
-      rescore();
-    });
-  }
-  bindKindMute('mute-types', 'type:');
-  bindKindMute('mute-subs', 'sub:');
 
   // Per-row: mute/unmute a single feature (checked = on/contributing).
   featureToggles.forEach(cb => {

@@ -38,11 +38,11 @@
   <label>Level:
     <select id="level-select" data-param="level">
       <option value="Broad"    {{ 'selected' if selected_level == 'Broad' }}>Broad</option>
-      <option value="Balanced" {{ 'selected' if selected_level == 'Balanced' }}>Balanced</option>
+      <option value="Balanced" {{ 'selected' if selected_level == 'Balanced' }}>Default</option>
       <option value="Fine"     {{ 'selected' if selected_level == 'Fine' }}>Fine</option>
     </select>
   </label>
-  <label title="Re-scores using card types &amp; subtypes as features (server recompute). Distinct from the Diagnostics tab's display-only Ignore types/subtypes.">
+  <label title="Re-scores using card types &amp; subtypes as features (server recompute), changing the scored feature set.">
     <input type="checkbox" id="include-types-toggle" {{ 'checked' if include_types }}>
     Include card types &amp; subtypes
   </label>
@@ -50,8 +50,7 @@
   <label><input type="checkbox" id="pauper-toggle"> Pauper only (commons)</label>
   <p class="scope-note"><strong>Theme</strong>, <strong>Level</strong>, and
     <strong>Include card types &amp; subtypes</strong> re-score Slept On;
-    Budget &amp; Bracket re-scope the displayed cards only. (The Diagnostics tab's
-    Ignore-types/subtypes toggles only mute the display — they don't re-score.)</p>
+    Budget &amp; Bracket re-scope the displayed cards only.</p>
 </div>
 
 <nav class="tabs" id="tab-bar">
@@ -119,10 +118,6 @@
     measures over/under-representation, and <strong>weight = P(X) × lift</strong>
     is the inclusion-weighted contribution actually added to a card's score.
   </p>
-  <div class="mute-kind-controls">
-    <label class="mute-kind-control"><input type="checkbox" id="mute-types" class="mute-kind"> Ignore types</label>
-    <label class="mute-kind-control"><input type="checkbox" id="mute-subs" class="mute-kind"> Ignore subtypes</label>
-  </div>
   <table class="diag-table">
     <thead>
       <tr>
