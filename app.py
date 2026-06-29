@@ -96,6 +96,14 @@ def commander(slug):
     tag = request.args.get("tag", "")
     budget = request.args.get("budget", "")
     bracket = request.args.get("bracket", "")
+    # Granularity controls (issue #41). Unlike budget/bracket these RE-SCORE: they
+    # change the feature set, so they thread into compute_feature_stats + every
+    # card_features/score_card call below (like `tag`). `level` is validated to a
+    # known name (else default Balanced); `include_types` is a strict boolean.
+    level = request.args.get("level", "")
+    if level not in analysis.LEVEL_DEPTHS:
+        level = analysis.DEFAULT_LEVEL
+    include_types = request.args.get("include_types", "").lower() == "true"
     # Deck-scoped scoring (issue #34): an Archidekt deck id carried over from the
     # index route. When present, the deck's cards tilt the feature weights (forced
     # to 100% inclusion in the scoring path) and get an "In deck" badge.
