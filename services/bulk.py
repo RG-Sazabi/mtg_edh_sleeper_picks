@@ -18,6 +18,7 @@ Bulk files are reference data (the full Scryfall catalog), not per-request cache
 and are intentionally persisted to disk. See CLAUDE.md "Scryfall Rate Limiting".
 """
 
+import functools
 import logging
 import os
 import threading
@@ -77,6 +78,10 @@ _load_lock = threading.Lock()
 _commander_names: list[str] | None = None
 # Memoized {partner_kind -> sorted [front-face name]}; rebuilt when indices reload.
 _partner_pools: dict[str, list[str]] | None = None
+# Oracle-tag hierarchy, derived from oracle_tags `parent_ids`. Slug-keyed
+# (slugs are unique in the bulk); rebuilt when indices reload.
+_tag_depth: dict[str, int] = {}      # slug -> depth (root = 1)
+_tag_parents: dict[str, list[str]] = {}  # slug -> parent slugs (DAG edges)
 
 
 def _bulk_path(kind: str) -> str:
@@ -202,14 +207,25 @@ def _trim(card: dict) -> dict:
 
 
 def _build_otag_index(path: str) -> None:
-    """Stream the oracle-tags bulk into {oracle_id -> [tag slug, ...]}."""
+    """
+    Stream the oracle-tags bulk into {oracle_id -> [tag slug, ...]} and, in the
+    same pass, build the slug-keyed tag hierarchy (parent edges + depth) from
+    each tag's ``parent_ids``. Hierarchy ids are translated to slugs (unique in
+    the bulk) so the public accessors stay slug-based like the rest of the app.
+    """
     index: dict[str, list[str]] = defaultdict(list)
+    id_to_slug: dict[str, str] = {}
+    id_to_parents: dict[str, list[str]] = {}
     try:
         with open(path, "rb") as fh:
             for tag_obj in ijson.items(fh, "item"):
                 slug = tag_obj.get("slug", "")
                 if not slug:
                     continue
+                tag_id = tag_obj.get("id", "")
+                if tag_id:
+                    id_to_slug[tag_id] = slug
+                    id_to_parents[tag_id] = list(tag_obj.get("parent_ids", []))
                 for tagging in tag_obj.get("taggings", []):
                     oid = tagging.get("oracle_id", "")
                     if oid:
@@ -218,6 +234,43 @@ def _build_otag_index(path: str) -> None:
         logger.error("_build_otag_index failed: %s", e)
     _otag_index.clear()
     _otag_index.update(index)
+
+    # Translate id-based parents to slug-based edges, dropping any parent id
+    # not present in the file (dangling reference).
+    parents: dict[str, list[str]] = {}
+    for tag_id, slug in id_to_slug.items():
+        parents[slug] = [
+            id_to_slug[p] for p in id_to_parents.get(tag_id, []) if p in id_to_slug
+        ]
+    _tag_parents.clear()
+    _tag_parents.update(parents)
+    _compute_tag_depths()
+
+
+def _compute_tag_depths() -> None:
+    """
+    Populate ``_tag_depth`` (slug -> shortest distance to a root, root = 1) from
+    ``_tag_parents``. The parent graph is a DAG that may contain cycles from bad
+    data, so the recursion carries the current stack and treats a revisited node
+    as a non-contributing root (returns 1 for that branch only). Results are
+    memoized into ``_tag_depth`` as they settle.
+    """
+    _tag_depth.clear()
+
+    def _depth(slug: str, stack: frozenset[str]) -> int:
+        if slug in _tag_depth:
+            return _tag_depth[slug]
+        if slug in stack:                 # cycle guard
+            return 1
+        parents = [p for p in _tag_parents.get(slug, []) if p in _tag_parents]
+        d = 1 if not parents else 1 + min(
+            _depth(p, stack | {slug}) for p in parents
+        )
+        _tag_depth[slug] = d
+        return d
+
+    for slug in _tag_parents:
+        _depth(slug, frozenset())
 
 
 def _printing_penalty(card: dict) -> int:
@@ -330,14 +383,45 @@ def ensure_loaded() -> None:
         if cards_path:
             _build_card_index(cards_path)
         # Indices were (re)built; drop any cached derived view so it rebuilds.
+        # (_tag_depth / _tag_parents are cleared+rebuilt inside _build_otag_index,
+        # like _otag_index, so only the lru_cache of ancestors needs clearing.)
         _commander_names = None
         _partner_pools = None
+        ancestors_at_depth.cache_clear()
         _loaded = True
 
 
 def otags_for(oracle_id: str) -> list[str]:
     ensure_loaded()
     return _otag_index.get(oracle_id, [])
+
+
+def tag_depth(slug: str) -> int:
+    """Depth of an oracle-tag slug in the hierarchy (root = depth 1).
+    Unknown slugs default to 1 (treated as already-coarse / kept as-is)."""
+    ensure_loaded()
+    return _tag_depth.get(slug, 1)
+
+
+@functools.lru_cache(maxsize=None)
+def ancestors_at_depth(slug: str, n: int) -> frozenset[str]:
+    """All level-``n`` ancestors of ``slug`` (the parent graph is a DAG, so
+    there may be several). Includes ``slug`` itself when its own depth == n.
+    Cycle-guarded; cached for cheap repeated per-card lookups during scoring.
+    Cache is cleared on index reload in ensure_loaded()."""
+    ensure_loaded()
+    result: set[str] = set()
+    stack: list[str] = [slug]
+    seen: set[str] = set()
+    while stack:
+        cur = stack.pop()
+        if cur in seen:            # cycle / DAG re-convergence guard
+            continue
+        seen.add(cur)
+        if _tag_depth.get(cur, 1) == n:
+            result.add(cur)
+        stack.extend(_tag_parents.get(cur, []))
+    return frozenset(result)
 
 
 def card_record(name: str) -> dict | None:
