@@ -96,6 +96,14 @@ def commander(slug):
     tag = request.args.get("tag", "")
     budget = request.args.get("budget", "")
     bracket = request.args.get("bracket", "")
+    # Granularity controls (issue #41). Unlike budget/bracket these RE-SCORE: they
+    # change the feature set, so they thread into compute_feature_stats + every
+    # card_features/score_card call below (like `tag`). `level` is validated to a
+    # known name (else default Balanced); `include_types` is a strict boolean.
+    level = request.args.get("level", "")
+    if level not in analysis.LEVEL_DEPTHS:
+        level = analysis.DEFAULT_LEVEL
+    include_types = request.args.get("include_types", "").lower() == "true"
     # Deck-scoped scoring (issue #34): an Archidekt deck id carried over from the
     # index route. When present, the deck's cards tilt the feature weights (forced
     # to 100% inclusion in the scoring path) and get an "In deck" badge.
@@ -210,24 +218,36 @@ def commander(slug):
         exclude_names.add(analysis.normalize_name(cm["name"]))
     # Weights come strictly from the scoring view (tag-only or base) so that
     # budget/bracket never move scores; only a tag rescopes the feature weights.
-    feature_stats = analysis.compute_feature_stats(scoring_cards)
+    feature_stats = analysis.compute_feature_stats(
+        scoring_cards, level=level, include_types=include_types
+    )
     weights = {s["feature"]: s["weight"] for s in feature_stats}
-    slept_on = analysis.score_cards(color_pool, weights, exclude_names)
+    slept_on = analysis.score_cards(
+        color_pool, weights, exclude_names, level=level, include_types=include_types
+    )
 
     # Score the EDHRec recommendations on the same scale so the EDHRec tab is
     # directly comparable to Slept On. We do NOT re-rank them (they stay grouped
     # by category); features power the client-side re-score on Diagnostics toggles.
     for c in edhrec_cards:
-        c["features"] = analysis.card_features(c)
-        c["buzzword_score"] = analysis.score_card(c, weights)
+        c["features"] = analysis.card_features(
+            c, level=level, include_types=include_types
+        )
+        c["buzzword_score"] = analysis.score_card(
+            c, weights, level=level, include_types=include_types
+        )
         c["in_deck"] = analysis.normalize_name(c["name"]) in deck_names
 
     # Display-score the featured cards on the same weights (for the EDHRec tab's
     # featured rows). They are display-only — never appended to edhrec_cards and
     # never passed to compute_feature_stats/score_cards.
     for c in featured_cards:
-        c["features"] = analysis.card_features(c)
-        c["buzzword_score"] = analysis.score_card(c, weights)
+        c["features"] = analysis.card_features(
+            c, level=level, include_types=include_types
+        )
+        c["buzzword_score"] = analysis.score_card(
+            c, weights, level=level, include_types=include_types
+        )
         c["in_deck"] = analysis.normalize_name(c["name"]) in deck_names
 
     # Presentation-only split (issue #31/#32): one overall Top 10 plus the seven
@@ -254,7 +274,9 @@ def commander(slug):
         if id(c) in seen_ids:
             continue
         seen_ids.add(id(c))
-        c["features"] = analysis.card_features(c)
+        c["features"] = analysis.card_features(
+            c, level=level, include_types=include_types
+        )
         c["in_edhrec"] = analysis.normalize_name(c["name"]) in edhrec_names
         c["in_deck"] = analysis.normalize_name(c["name"]) in deck_names
 
@@ -286,8 +308,12 @@ def commander(slug):
             if hit:
                 card["edhrec_inclusion"] = hit["inclusion"]
                 card["edhrec_synergy"] = hit["synergy"]
-            card["features"] = analysis.card_features(card)
-            card["buzzword_score"] = analysis.score_card(card, weights)
+            card["features"] = analysis.card_features(
+                card, level=level, include_types=include_types
+            )
+            card["buzzword_score"] = analysis.score_card(
+                card, weights, level=level, include_types=include_types
+            )
             card["in_edhrec"] = (
                 analysis.normalize_name(name) in edhrec_names
             )
@@ -309,6 +335,8 @@ def commander(slug):
         selected_tag=tag,
         selected_budget=budget,
         selected_bracket=bracket,
+        selected_level=level,
+        include_types=include_types,
         available_tags=available_tags,
         budget_options=edhrec.BUDGET_OPTIONS,
         bracket_options=edhrec.BRACKET_OPTIONS,
