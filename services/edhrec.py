@@ -172,16 +172,24 @@ def resolve_pairing_slug(name_a: str, name_b: str) -> str:
     return f"{sa}-{sb}"
 
 
+def _inclusion_from_cardview(cv: dict) -> float:
+    """
+    Pure: fraction of potential decks that include the card. EDHRec renamed the
+    deck-count field ``inclusion`` -> ``num_decks`` (July 2026); read the new name
+    first and keep the old one as a fallback for any cached/older payloads.
+    """
+    potential = cv.get("potential_decks") or 0
+    inclusion_count = cv.get("num_decks") or cv.get("inclusion") or 0
+    return (inclusion_count / potential) if potential else 0.0
+
+
 def _card_from_cardview(cv: dict, category: str) -> dict:
     """Pure: build a per-card scoring dict from an EDHRec cardview."""
-    potential = cv.get("potential_decks") or 0
-    inclusion_count = cv.get("inclusion") or 0
-    edhrec_inclusion = (inclusion_count / potential) if potential else 0.0
     return {
         "name": cv.get("name", ""),
         "edhrec_category": category,
         "edhrec_synergy": float(cv.get("synergy") or 0.0),
-        "edhrec_inclusion": edhrec_inclusion,
+        "edhrec_inclusion": _inclusion_from_cardview(cv),
         "otags": [],
         "type_line": "",
         "price_usd": None,
@@ -253,9 +261,7 @@ def inclusion_index_from_data(data: dict) -> dict[str, dict]:
             if not name:
                 continue
             key = normalize_name(name)
-            potential = cv.get("potential_decks") or 0
-            inclusion_count = cv.get("inclusion") or 0
-            inclusion = (inclusion_count / potential) if potential else 0.0
+            inclusion = _inclusion_from_cardview(cv)
             synergy = float(cv.get("synergy") or 0.0)
             existing = index.get(key)
             if existing is None:

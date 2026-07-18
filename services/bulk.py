@@ -2,10 +2,12 @@
 Local Scryfall bulk-data store.
 
 Downloads Scryfall's ``default_cards`` and ``oracle_tags`` bulk files to a local
-``cache/`` directory (refreshed every 24h) and serves card attributes, oracle
-tags, and color-identity pools from in-memory indices. This keeps a commander
-lookup to two EDHRec calls plus pure local computation — no per-request Scryfall
-pagination and no cold-start re-download of the tag index.
+``cache/`` directory (refreshed every 24h, stale-while-revalidate: a stale
+file is served immediately while a background thread re-downloads) and serves
+card attributes, oracle tags, and color-identity pools from in-memory indices.
+This keeps a commander lookup to two EDHRec calls plus pure local computation —
+no per-request Scryfall pagination and no cold-start re-download of the tag
+index.
 
 We use ``default_cards`` (every paper printing) rather than ``oracle_cards`` (one
 printing per card) so we can pick the cleanest *standard* printing for each card.
@@ -94,15 +96,13 @@ def _is_stale(path: str) -> bool:
     return (time.time() - os.path.getmtime(path)) > MAX_AGE_SECONDS
 
 
-def _ensure_fresh(kind: str) -> str | None:
+def _download(kind: str) -> str | None:
     """
-    Ensure the bulk file for ``kind`` exists on disk and is < MAX_AGE old.
-    Streams the download to disk to avoid holding the whole file in memory.
-    Returns the local path, or None on failure.
+    Download the bulk file for ``kind`` unconditionally, streaming to disk to
+    avoid holding the whole file in memory. Returns the local path, or the
+    stale-but-present path (None if absent) on failure.
     """
     path = _bulk_path(kind)
-    if not _is_stale(path):
-        return path
     os.makedirs(CACHE_DIR, exist_ok=True)
     try:
         resp = requests.get(f"{SCRYFALL_BASE}/bulk-data", headers=HEADERS, timeout=15)
@@ -132,7 +132,7 @@ def _ensure_fresh(kind: str) -> str | None:
         logger.info("Saved Scryfall bulk %r to %s", kind, path)
         return path
     except Exception as e:
-        logger.error("_ensure_fresh(%r) failed: %s", kind, e)
+        logger.error("_download(%r) failed: %s", kind, e)
         # Fall back to a stale-but-present file rather than failing hard.
         return path if os.path.exists(path) else None
 
@@ -364,31 +364,64 @@ def _neg(released: str) -> str:
     return "".join(chr(255 - ord(ch)) for ch in released)
 
 
+def _rebuild_indices() -> None:
+    """(Re)build all in-memory indices from the on-disk bulk files. Caller must
+    hold ``_load_lock``."""
+    global _commander_names, _partner_pools
+    tags_path = _bulk_path("oracle_tags")
+    cards_path = _bulk_path("default_cards")
+    if os.path.exists(tags_path):
+        _build_otag_index(tags_path)
+    if os.path.exists(cards_path):
+        _build_card_index(cards_path)
+    # Indices were (re)built; drop any cached derived view so it rebuilds.
+    # (_tag_depth / _tag_parents are cleared+rebuilt inside _build_otag_index,
+    # like _otag_index, so only the lru_cache of ancestors needs clearing.)
+    _commander_names = None
+    _partner_pools = None
+    ancestors_at_depth.cache_clear()
+
+
+def _refresh_stale(kinds: list[str]) -> None:
+    """
+    Background refresh: download the stale bulk files for ``kinds``, then rebuild
+    the indices from the fresh copies. Failures just leave the stale (already
+    served) data in place.
+    """
+    refreshed = [k for k in kinds if _download(k)]
+    if not refreshed:
+        return
+    with _load_lock:
+        _rebuild_indices()
+    logger.info("Background bulk refresh complete: %s", ", ".join(refreshed))
+
+
 def ensure_loaded() -> None:
     """
-    Download (if stale) and build all in-memory indices. Idempotent per process
-    and thread-safe: concurrent callers (e.g. the startup warm-up thread and an
-    early request) serialize on ``_load_lock`` so the build runs exactly once.
+    Build all in-memory indices, downloading bulk files only when absent.
+    Stale-but-present files are served immediately and refreshed in a background
+    thread (stale-while-revalidate), so the daily ~550MB re-download never blocks
+    the first request of the day. Idempotent per process and thread-safe:
+    concurrent callers (e.g. the startup warm-up thread and an early request)
+    serialize on ``_load_lock`` so the build runs exactly once.
     """
-    global _loaded, _commander_names, _partner_pools
+    global _loaded
     if _loaded:
         return
+    stale: list[str] = []
     with _load_lock:
         if _loaded:  # another thread finished the build while we waited
             return
-        cards_path = _ensure_fresh("default_cards")
-        tags_path = _ensure_fresh("oracle_tags")
-        if tags_path:
-            _build_otag_index(tags_path)
-        if cards_path:
-            _build_card_index(cards_path)
-        # Indices were (re)built; drop any cached derived view so it rebuilds.
-        # (_tag_depth / _tag_parents are cleared+rebuilt inside _build_otag_index,
-        # like _otag_index, so only the lru_cache of ancestors needs clearing.)
-        _commander_names = None
-        _partner_pools = None
-        ancestors_at_depth.cache_clear()
+        for kind in _BULK_FILES:
+            path = _bulk_path(kind)
+            if not os.path.exists(path):
+                _download(kind)  # first run: nothing to serve, must block
+            elif _is_stale(path):
+                stale.append(kind)  # serve now, refresh in the background
+        _rebuild_indices()
         _loaded = True
+    if stale:
+        threading.Thread(target=_refresh_stale, args=(stale,), daemon=True).start()
 
 
 def otags_for(oracle_id: str) -> list[str]:
