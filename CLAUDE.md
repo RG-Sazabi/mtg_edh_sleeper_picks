@@ -141,7 +141,7 @@ mtg_edh_sleeper_picks/
 - Log errors with `app.logger.error(...)` — no bare `print()` in production paths.
 
 ### Scryfall Bulk Data (local store)
-- Card attributes, oracle tags, and the color-identity pool are served from a **local bulk store** (`services/bulk.py`), not per-request HTTP. On first use it downloads Scryfall's `default_cards` (~547 MB) and `oracle_tags` (~18 MB) bulk files to `cache/` and builds in-memory indices (stream-parsed with `ijson` to bound memory). Files refresh when older than 24h.
+- Card attributes, oracle tags, and the color-identity pool are served from a **local bulk store** (`services/bulk.py`), not per-request HTTP. On first use it downloads Scryfall's `default_cards` (~547 MB) and `oracle_tags` (~18 MB) bulk files to `cache/` and builds in-memory indices (stream-parsed with `ijson` to bound memory). Files refresh when older than 24h via **stale-while-revalidate**: a stale-but-present file is parsed and served immediately while a background thread re-downloads and rebuilds the indices, so the daily ~550 MB download never blocks the first request of the day (only a truly missing file — first run — downloads synchronously).
 - We use `default_cards` (every paper printing) rather than `oracle_cards` (one printing per card) so each card renders its **cleanest standard printing**. `oracle_cards`' "most recent recognizable" pick is a borderless/full-art/Un-set/art-series version for ~12% of cards (often missing the normal frame or rules text). `bulk._printing_penalty` ranks printings; we keep the lowest-penalty one per oracle id, tie-broken toward high-res + newest. Do not switch back to `oracle_cards`.
 - `cache/` is downloaded **reference data** (the full Scryfall catalog), intentionally persisted to disk and gitignored. This is distinct from per-request response caching — the earlier "no disk cache" guidance does not apply to the bulk store.
 - After warm-up, a commander lookup makes **only** EDHRec calls plus pure local computation. The thin live `/cards/named` fallback in `services/scryfall.py` (0.15s sleep, 429 backoff) only fires for a name absent from the bulk snapshot.
@@ -233,6 +233,7 @@ check `memory/MEMORY.md` for relevant prior context.
 ## Notes
 
 - PyEDHRec 0.0.2 is an unofficial library. If it breaks, check its source and fall back to direct EDHRec JSON endpoints.
+- EDHRec renames JSON fields without notice: in July 2026 the cardview deck count `inclusion` became `num_decks` (issue #47), silently zeroing every `edhrec_inclusion` and emptying Slept On. `edhrec._inclusion_from_cardview` reads `num_decks` with `inclusion` as fallback. If Slept On goes empty again with no exceptions, diff a raw cardview's keys against what `services/edhrec.py` reads first.
 - Scryfall `search?q=otag:X+id<=COLOR` is the query pattern for color-identity + otag filtering.
 - The "Slept On" section is the core differentiator of this app. Keep its logic in `services/analysis.py` and well-commented.
 - Personal use only — no auth, no user accounts, no scalability concerns.
