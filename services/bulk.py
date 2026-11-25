@@ -286,8 +286,35 @@ def _partner_kind(card: dict) -> str:
     return ""
 
 
+def _is_meld_result(card: dict) -> bool:
+    """True for the back half of a meld pair (e.g. "Urza, Planeswalker",
+    "Brisela, Voice of Nightmares"): only ever created by melding two parts on
+    the battlefield, never put in a deck. Meld *parts* share ``layout: meld`` but
+    list a *different* card as their ``meld_result``, so they are kept."""
+    if card.get("layout") != "meld":
+        return False
+    name = card.get("name")
+    return any(
+        part.get("component") == "meld_result" and part.get("name") == name
+        for part in card.get("all_parts") or []
+    )
+
+
+def _is_undeckable(card: dict) -> bool:
+    """Objects Scryfall marks commander-legal that can't go in a 100-card deck:
+    meld results and Unfinity sticker sheets (``type_line == "Stickers"``)."""
+    return _is_meld_result(card) or card.get("type_line") == "Stickers"
+
+
+def _is_basic_land(type_line: str) -> bool:
+    """True when "Basic" is among the supertypes (before the em dash): basic
+    lands, snow basics, Wastes."""
+    return "Basic" in type_line.split("—", 1)[0].split()
+
+
 def _trim(card: dict) -> dict:
     price_raw = (card.get("prices") or {}).get("usd")
+    legal = (card.get("legalities") or {}).get("commander") == "legal"
     return {
         "name": card.get("name", ""),
         "oracle_id": card.get("oracle_id", ""),
@@ -297,7 +324,10 @@ def _trim(card: dict) -> dict:
         "rarity": card.get("rarity", ""),
         "image_uri": _image_uri(card),
         "edhrec_rank": card.get("edhrec_rank"),
-        "commander_legal": (card.get("legalities") or {}).get("commander") == "legal",
+        # "Can be put in a Commander deck": Scryfall's legality, minus meld
+        # results and sticker sheets (which it also marks legal). The records
+        # stay indexed so card_record() still resolves them by name.
+        "commander_legal": legal and not _is_undeckable(card),
         "layout": card.get("layout", ""),
         "can_be_commander": _can_be_commander(card),
         "partner_kind": _partner_kind(card),
@@ -666,7 +696,9 @@ def color_identity_pool(color_identity: list[str]) -> list[dict]:
     """
     All commander-legal cards whose color identity is a subset of the given
     identity, sorted by EDHRec rank ascending (most-played first; None last).
-    Pure in-memory filter — no network.
+    Basic lands are left out (every deck runs them; they are never a "slept on"
+    pick) — they still resolve by name via card_record(). Pure in-memory filter
+    — no network.
     """
     ensure_loaded()
     target = set(color_identity)
@@ -675,6 +707,7 @@ def color_identity_pool(color_identity: list[str]) -> list[dict]:
         for rec in _store.cards
         if rec["commander_legal"]
         and rec["layout"] not in _EXCLUDED_LAYOUTS
+        and not _is_basic_land(rec["type_line"])
         and set(rec["color_identity"]) <= target
     ]
     pool.sort(key=lambda r: (r["edhrec_rank"] is None, r["edhrec_rank"] or 0))
@@ -692,7 +725,7 @@ def commander_names() -> list[str]:
         names = {
             rec["name"].split(" // ", 1)[0]
             for rec in store.cards
-            if rec["can_be_commander"] and rec["name"]
+            if rec["can_be_commander"] and rec["commander_legal"] and rec["name"]
         }
         store.commander_names = sorted(names, key=str.casefold)
     return store.commander_names
