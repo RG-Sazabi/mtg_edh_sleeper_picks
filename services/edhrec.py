@@ -1,4 +1,6 @@
 import logging
+import re
+import unicodedata
 
 import requests
 
@@ -81,7 +83,20 @@ BRACKET_OPTIONS = ("", "cedh")
 
 
 def slugify(name: str) -> str:
-    return name.lower().replace(" ", "-").replace("'", "").replace(",", "")
+    """
+    EDHRec page slug for a card name (idempotent on an existing slug). Matches
+    EDHRec's rule, verified live Nov 2026: accents folded (NFKD, combining marks
+    dropped: "Éowyn" -> "eowyn"), ``/`` treated as a separator ("SP//dr" ->
+    "sp-dr"), every other non-alphanumeric character dropped ("Mr. House" ->
+    "mr-house", "H.E.R.B.I.E." -> "herbie", "Minsc & Boo" -> "minsc-boo"),
+    whitespace/dash runs collapsed to one ``-``. The result is always
+    ``[a-z0-9-]``, so it is safe to interpolate into a URL path.
+    """
+    text = unicodedata.normalize("NFKD", name)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch)).lower()
+    text = text.replace("/", " ")
+    text = re.sub(r"[^a-z0-9\s-]", "", text)
+    return re.sub(r"[\s-]+", "-", text).strip("-")
 
 
 def _scope_url(slug: str, theme: str = "", budget: str = "") -> str:
