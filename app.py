@@ -109,13 +109,46 @@ def commander(slug):
     # to 100% inclusion in the scoring path) and get an "In deck" badge.
     deck_id = request.args.get("deck", "")
 
+    # 0b. Validate the free-form query params before they reach an API path.
+    #     Invalid values are dropped (rendered as "Any"/no deck) and reported in
+    #     the data_warning banner, which collects every warning for this request.
+    data_warnings: list[str] = []
+    # ASCII digits only (str.isdigit alone also accepts e.g. superscripts).
+    if deck_id and not (
+        deck_id.isascii() and deck_id.isdigit() and len(deck_id) <= 12
+    ):
+        app.logger.warning("ignoring invalid deck id %r", deck_id)
+        data_warnings.append("Ignored an invalid Archidekt deck id.")
+        deck_id = ""
+    if tag and not edhrec.is_safe_scope_slug(tag):
+        app.logger.warning("ignoring invalid theme tag %r", tag)
+        data_warnings.append("Ignored an invalid theme.")
+        tag = ""
+    if bracket and not edhrec.is_safe_scope_slug(bracket):
+        app.logger.warning("ignoring invalid bracket %r", bracket)
+        data_warnings.append("Ignored an invalid bracket.")
+        bracket = ""
+    if budget not in edhrec.BUDGET_OPTIONS:
+        app.logger.warning("ignoring invalid budget %r", budget)
+        data_warnings.append("Ignored an invalid budget.")
+        budget = ""
+
     # 1. Display view: the fully-composed scope drives the EDHRec tab, featured
     #    rows, the inclusion cross-ref, and the Slept On exclusion set.
-    display_data = edhrec.get_commander_data(
+    display_data, fetch_error = edhrec.fetch_commander_scope(
         slug, tag=tag, budget=budget, bracket=bracket
     )
     info = edhrec.commander_info_from_data(display_data) if display_data else None
     commanders = edhrec.commanders_from_data(display_data) if display_data else []
+    if fetch_error == edhrec.FETCH_NETWORK:
+        return (
+            render_template(
+                "error.html",
+                message="Couldn't reach EDHRec (network problem or EDHRec is "
+                "down). Check your connection and try again in a moment.",
+            ),
+            502,
+        )
     if display_data and not info:
         app.logger.error("EDHRec page for %r has no usable commander card", slug)
         return (
@@ -139,8 +172,12 @@ def commander(slug):
     edhrec_cards = edhrec.cards_from_data(display_data)
     # Runtime contract check: schema drift (a renamed field zeroing inclusion, a
     # new list tag) is logged and surfaced as a banner rather than a silently
-    # wrong page. data_warnings collects every banner message for this request.
-    data_warnings: list[str] = []
+    # wrong page. A scope that failed to fetch (fell back to a broader page while
+    # the selectors still show the request) is reported the same way.
+    scope_note = edhrec.scope_fallback_warning(display_data, tag, budget, bracket)
+    if scope_note:
+        app.logger.warning("scope fallback for %r: %s", slug, scope_note)
+        data_warnings.append(scope_note)
     problems = edhrec.contract_problems(display_data, edhrec_cards)
     for problem in problems:
         app.logger.error("EDHRec data check for %r: %s", slug, problem)
@@ -371,7 +408,15 @@ def commander(slug):
 
 
 if __name__ == "__main__":
-    debug = True
+    # Debug (reloader + Werkzeug debugger) stays ON by default so `python app.py`
+    # behaves as before; set FLASK_DEBUG=0 (or false/no/off) to turn it off.
+    # FLASK_DEBUG is the variable `flask run` already honours.
+    debug = os.environ.get("FLASK_DEBUG", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
     # Warm the bulk store on startup so the first autocomplete keystroke doesn't
     # pay the ~540MB download/parse cost. Run it in a daemon thread so the server
     # still binds immediately (and code-reload stays snappy); ensure_loaded() is

@@ -110,46 +110,74 @@ def _scope_url(slug: str, theme: str = "", budget: str = "") -> str:
     ``theme`` is a single tag or bracket slug (EDHRec allows one theme slot).
     """
     path = slugify(slug)
-    if theme:
+    if theme and is_safe_scope_slug(theme):  # never interpolate an unsafe value
         path += f"/{theme}"
     if budget in ("budget", "expensive"):
         path += f"/{budget}"
     return f"{EDHREC_JSON_BASE}/{path}.json"
 
 
-def _fetch_json_dict(url: str) -> dict | None:
+# A theme tag / bracket value that may go into an EDHRec URL path segment.
+_SAFE_SCOPE_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
+
+
+def is_safe_scope_slug(value: str) -> bool:
+    """Pure: ``True`` if ``value`` is a plausible EDHRec tag/bracket slug."""
+    return bool(value) and _SAFE_SCOPE_RE.fullmatch(value) is not None
+
+
+# Fetch-failure kinds reported by fetch_commander_scope().
+FETCH_NOT_FOUND = "not_found"  # 4xx, or a 200 without a page container
+FETCH_NETWORK = "network"  # connection error, timeout, 5xx / 429
+
+
+def _fetch_json_dict(url: str) -> tuple[dict | None, str | None]:
     """
-    Single HTTP GET to an EDHRec page URL. Returns the parsed
-    ``container.json_dict`` dict (commander card + all cardlists), or ``None`` on
-    any error. The page's ``panels`` block (theme ``taglinks`` etc.) lives at the
-    response root, a sibling of ``container``; it is folded into the returned dict
-    under ``panels`` so scope extractors like ``available_tags_from_data`` can
-    read it from the single ``get_commander_data`` payload.
+    Single HTTP GET to an EDHRec page URL. Returns ``(data, None)`` with the
+    parsed ``container.json_dict`` dict (commander card + all cardlists), or
+    ``(None, FETCH_NOT_FOUND | FETCH_NETWORK)`` on error. The page's ``panels``
+    block (theme ``taglinks`` etc.) lives at the response root, a sibling of
+    ``container``; it is folded into the returned dict under ``panels`` so scope
+    extractors like ``available_tags_from_data`` can read it from the single
+    ``get_commander_data`` payload.
     """
     try:
         resp = requests.get(url, headers=HEADERS, timeout=10)
+    except requests.RequestException as e:
+        logger.error("_fetch_json_dict network error for %r: %s", url, e)
+        return None, FETCH_NETWORK
+    if resp.status_code >= 500 or resp.status_code == 429:
+        logger.error("_fetch_json_dict got HTTP %s for %r", resp.status_code, url)
+        return None, FETCH_NETWORK
+    try:
         resp.raise_for_status()
         payload = resp.json()
         data = payload["container"]["json_dict"]
         data["panels"] = payload.get("panels", {})
-        return data
+        return data, None
     except Exception as e:
+        # 4xx (EDHRec answers 403 for unknown slugs), or a 200 without a page
+        # container (e.g. a {"redirect": ...} stub for a reversed pairing).
         logger.error("_fetch_json_dict failed for %r: %s", url, e)
-        return None
+        return None, FETCH_NOT_FOUND
 
 
-def get_commander_data(
+def fetch_commander_scope(
     slug: str, tag: str = "", budget: str = "", bracket: str = ""
-) -> dict | None:
+) -> tuple[dict | None, str | None]:
     """
     Fetch the EDHRec page ``container.json_dict`` for a commander scope. Returns
-    the commander card + all cardlists, or ``None`` on error. ``slug`` is
-    re-slugified so callers can pass either a slug or a display name idempotently.
+    ``(data, None)`` or ``(None, error_kind)`` where ``error_kind`` is
+    ``FETCH_NETWORK`` if any attempt failed at the network level, else
+    ``FETCH_NOT_FOUND``. ``slug`` is re-slugified so callers can pass either a
+    slug or a display name idempotently.
 
     ``theme`` = tag or bracket (tag wins; EDHRec allows one theme slug). On a
     non-200/parse error the most-specific scope is retried dropping the
     least-important segment in order (bracket -> budget -> base), so an
-    unsupported combo degrades gracefully instead of failing.
+    unsupported combo degrades gracefully instead of failing. The scope actually
+    served is recorded on the data as ``served_scope`` ``{"theme", "budget"}``
+    so callers can tell the user about a fallback (``scope_fallback_warning``).
     """
     theme = tag or bracket
     # Candidate (theme, budget) tuples, most- to least-specific.
@@ -159,11 +187,66 @@ def get_commander_data(
     if budget:
         attempts.append((theme, ""))
     attempts.append(("", ""))  # base, last resort
+    error = FETCH_NOT_FOUND
     for th, bg in dict.fromkeys(attempts):  # dedupe, preserve order
-        data = _fetch_json_dict(_scope_url(slug, th, bg))
+        data, err = _fetch_json_dict(_scope_url(slug, th, bg))
         if data:
-            return data
-    return None
+            data["served_scope"] = {"theme": th, "budget": bg}
+            return data, None
+        if err == FETCH_NETWORK:
+            error = FETCH_NETWORK
+    return None, error
+
+
+def get_commander_data(
+    slug: str, tag: str = "", budget: str = "", bracket: str = ""
+) -> dict | None:
+    """``fetch_commander_scope`` without the error kind: data or ``None``."""
+    return fetch_commander_scope(slug, tag=tag, budget=budget, bracket=bracket)[0]
+
+
+def served_scope(data: dict | None) -> tuple[str, str]:
+    """Pure: the ``(theme, budget)`` a ``fetch_commander_scope`` payload served."""
+    scope = (data or {}).get("served_scope") or {}
+    return scope.get("theme", ""), scope.get("budget", "")
+
+
+def scope_fallback_warning(
+    data: dict | None, tag: str = "", budget: str = "", bracket: str = ""
+) -> str:
+    """
+    Pure: a user-facing sentence when the served scope differs from the one the
+    selectors ask for (that page failed to fetch, or a tag displaced the bracket
+    from EDHRec's single theme slot), else ``""``. The UI keeps the user's
+    selection, so without this the page would silently show a different scope.
+    """
+    if not data:
+        return ""
+    served_theme, served_budget = served_scope(data)
+    notes: list[str] = []
+    if tag and bracket:
+        notes.append(
+            f"Bracket '{bracket}' is not applied: EDHRec allows a theme or a "
+            "bracket, not both, and the theme takes precedence."
+        )
+    wanted_theme = tag or bracket
+    dropped = []
+    if wanted_theme and served_theme != wanted_theme:
+        dropped.append(f"{'theme' if tag else 'bracket'} '{wanted_theme}'")
+    if budget and served_budget != budget:
+        dropped.append(f"budget '{budget}'")
+    if dropped:
+        shown = []
+        if served_theme:
+            shown.append(f"'{served_theme}'")
+        if served_budget:
+            shown.append(f"'{served_budget}'")
+        notes.append(
+            f"Couldn't load EDHRec data for {' + '.join(dropped)}; showing "
+            + (" + ".join(shown) if shown else "all cards for this commander")
+            + " instead."
+        )
+    return " ".join(notes)
 
 
 def available_tags_from_data(data: dict) -> list[dict]:
