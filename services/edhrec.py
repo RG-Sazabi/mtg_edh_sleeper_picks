@@ -176,17 +176,56 @@ def commander_info_from_data(data: dict) -> dict | None:
     if not data:
         return None
     card = data.get("card")
-    if not card:
+    if not isinstance(card, dict):
+        return None
+    name = card.get("name")
+    color_identity = card.get("color_identity")
+    if not name or not isinstance(color_identity, list):
+        # A renamed key would otherwise be a KeyError -> 500 in the route.
+        logger.error(
+            "EDHRec commander card missing name/color_identity; keys: %s",
+            sorted(card.keys()),
+        )
         return None
     image_uri = ""
-    image_uris = card.get("image_uris", [])
-    if image_uris:
+    image_uris = card.get("image_uris") or []
+    if image_uris and isinstance(image_uris[0], dict):
         image_uri = image_uris[0].get("normal", "")
     return {
-        "name": card["name"],
-        "color_identity": card["color_identity"],
+        "name": name,
+        "color_identity": color_identity,
         "image_uri": image_uri,
     }
+
+
+def contract_problems(data: dict, cards: list[dict]) -> list[str]:
+    """
+    Pure: cheap sanity checks on a parsed EDHRec page, so silent schema drift
+    (e.g. issue #47's renamed deck-count field, which zeroed every inclusion and
+    emptied Slept On) shows up as a visible warning instead of a quietly wrong
+    page. ``cards`` is ``cards_from_data(data)``. Returns human-readable problems,
+    empty when the page looks healthy.
+    """
+    problems: list[str] = []
+    if not cards:
+        problems.append("no cards could be parsed from the EDHRec page")
+    else:
+        with_inclusion = sum(1 for c in cards if c.get("edhrec_inclusion", 0) > 0)
+        if with_inclusion * 2 < len(cards):
+            problems.append(
+                f"only {with_inclusion} of {len(cards)} EDHRec cards have an "
+                "inclusion rate (EDHRec may have renamed a field)"
+            )
+    unknown = sorted(
+        {
+            str(cl.get("tag"))
+            for cl in (data or {}).get("cardlists", [])
+            if cl.get("tag") not in _KNOWN_TAGS
+        }
+    )
+    if unknown:
+        problems.append(f"unrecognised EDHRec card list(s): {', '.join(unknown)}")
+    return problems
 
 
 def commanders_from_data(data: dict) -> list[dict]:

@@ -53,6 +53,8 @@
     Budget &amp; Bracket re-scope the displayed cards only.</p>
 </div>
 
+{% if data_warning %}<div class="data-warning" role="alert">{{ data_warning }}</div>{% endif %}
+
 <nav class="tabs" id="tab-bar">
   <button class="tab-btn active" data-tab="slept-on-section">Slept On</button>
   <button class="tab-btn" data-tab="edhrec-section">EDHRec</button>

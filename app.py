@@ -116,6 +116,16 @@ def commander(slug):
     )
     info = edhrec.commander_info_from_data(display_data) if display_data else None
     commanders = edhrec.commanders_from_data(display_data) if display_data else []
+    if display_data and not info:
+        app.logger.error("EDHRec page for %r has no usable commander card", slug)
+        return (
+            render_template(
+                "error.html",
+                message=f"EDHRec returned data for '{slug}' in an unexpected "
+                "format. The app may need updating for an EDHRec change.",
+            ),
+            502,
+        )
     if not info:
         return (
             render_template(
@@ -127,6 +137,18 @@ def commander(slug):
     # 2. Type-category recommendation list + the broad inclusion index + theme
     #    options, all from the display view.
     edhrec_cards = edhrec.cards_from_data(display_data)
+    # Runtime contract check: schema drift (a renamed field zeroing inclusion, a
+    # new list tag) is logged and surfaced as a banner rather than a silently
+    # wrong page. data_warnings collects every banner message for this request.
+    data_warnings: list[str] = []
+    problems = edhrec.contract_problems(display_data, edhrec_cards)
+    for problem in problems:
+        app.logger.error("EDHRec data check for %r: %s", slug, problem)
+    if problems:
+        data_warnings.append(
+            "EDHRec data looks off (" + "; ".join(problems) + "). Scores and "
+            "Slept On picks may be unreliable."
+        )
     if not edhrec_cards:
         return (
             render_template("error.html", message=f"No card data found for '{slug}'."),
@@ -344,6 +366,7 @@ def commander(slug):
         available_tags=available_tags,
         budget_options=edhrec.BUDGET_OPTIONS,
         bracket_options=edhrec.BRACKET_OPTIONS,
+        data_warning=" ".join(data_warnings),
     )
 
 
