@@ -57,3 +57,9 @@ __pycache__/
 
 # Local Claude Code settings (machine-specific)
 .claude/settings.local.json
+
+# pytest
+.pytest_cache/
+
+# Claude Code agent worktrees
+.claude/worktrees/
