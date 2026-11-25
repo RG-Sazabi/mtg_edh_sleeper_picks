@@ -202,14 +202,15 @@ def commander(slug):
 
     # 2c. Scoring view: only a tag recomputes feature weights. Budget/bracket
     #     keep scores fixed to the base (no-tag) baseline, so resolve a separate
-    #     scoring view that ignores them. When neither applies, the display view
-    #     IS the scoring view (reuse it to avoid a second fetch + re-enrichment).
-    if tag:
-        scoring_data = edhrec.get_commander_data(slug, tag=tag)
-    elif budget or bracket:
-        scoring_data = edhrec.get_commander_data(slug)
-    else:
+    #     scoring view that ignores them. Whenever the display view already
+    #     served exactly the scoring scope (tag-only, or base), it IS the scoring
+    #     view: reuse it instead of fetching the identical EDHRec URL again.
+    if edhrec.served_scope(display_data) == (tag, ""):
         scoring_data = display_data
+    elif tag:
+        scoring_data = edhrec.get_commander_data(slug, tag=tag)
+    else:
+        scoring_data = edhrec.get_commander_data(slug)
     if scoring_data is display_data:
         scoring_cards = edhrec_cards
     else:
