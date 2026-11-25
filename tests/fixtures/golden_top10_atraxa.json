@@ -1,0 +1,45 @@
+{
+  "_note": "Atraxa Slept On Top 10 on the fixture data, default level, types off. Regenerate deliberately with: set UPDATE_GOLDEN=1 && .venv\\Scripts\\python -m pytest tests/test_scoring.py -k golden  (then review the diff).",
+  "top10": [
+    {
+      "name": "Ajani, Sleeper Agent",
+      "score": 0.947204
+    },
+    {
+      "name": "Vraska, Betrayal's Sting",
+      "score": 0.927557
+    },
+    {
+      "name": "K'rrik, Son of Yawgmoth",
+      "score": 0.795511
+    },
+    {
+      "name": "Contagion Engine",
+      "score": 0.735446
+    },
+    {
+      "name": "Yawgmoth, Thran Physician",
+      "score": 0.711215
+    },
+    {
+      "name": "Ixhel, Scion of Atraxa",
+      "score": 0.697407
+    },
+    {
+      "name": "Thrummingbird",
+      "score": 0.695129
+    },
+    {
+      "name": "Contaminant Grafter",
+      "score": 0.687659
+    },
+    {
+      "name": "The Mightstone and Weakstone",
+      "score": 0.686061
+    },
+    {
+      "name": "Shalai, Voice of Plenty",
+      "score": 0.678226
+    }
+  ]
+}
