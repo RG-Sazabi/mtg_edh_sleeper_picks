@@ -9,6 +9,14 @@ from services import edhrec, scryfall, analysis, bulk, archidekt
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
+
+@app.context_processor
+def inject_data_snapshot():
+    # Footer "Card data as of ..." line (base.html). snapshot_info() is pure — it
+    # never triggers or waits on a bulk load, so every page renders instantly.
+    return {"data_snapshot": bulk.snapshot_info()}
+
+
 # The color pool is now unbounded (whole color identity), but the N slider tops
 # out at 100. Each Slept On section renders its top SLEPT_ON_SECTION_CAP cards so
 # the slider can always reach its max, while 5-color commanders don't emit

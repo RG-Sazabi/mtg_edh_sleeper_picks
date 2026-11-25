@@ -579,6 +579,44 @@ def _in_failure_backoff() -> bool:
     )
 
 
+def snapshot_info() -> dict:
+    """
+    Describe the live snapshot for the UI footer. Pure: reads module state only,
+    never triggers, waits on, or blocks behind a bulk load.
+
+    Keys: ``state`` ("empty" | "loading" | "ready" | "error"), ``as_of`` (ISO
+    timestamp of Scryfall's snapshot or None), ``as_of_date`` ("YYYY-MM-DD" or
+    None), ``age_days`` (float or None), ``card_count``, ``last_refresh_failed``,
+    ``error`` (last load error text), and ``warn`` (True when the UI should flag
+    the data: load error, failed refresh, or older than ``STALE_WARN_DAYS``).
+    """
+    store = _store
+    age_days = None
+    as_of_date = None
+    if store.as_of:
+        try:
+            ts = datetime.fromisoformat(store.as_of)
+            age_days = (datetime.now(timezone.utc) - ts).total_seconds() / 86400
+            as_of_date = ts.date().isoformat()
+        except ValueError:
+            pass
+    warn = (
+        _state == "error"
+        or _last_refresh_failed
+        or (age_days is not None and age_days > STALE_WARN_DAYS)
+    )
+    return {
+        "state": _state,
+        "as_of": store.as_of,
+        "as_of_date": as_of_date,
+        "age_days": age_days,
+        "card_count": len(store.cards),
+        "last_refresh_failed": _last_refresh_failed,
+        "error": _last_error,
+        "warn": warn,
+    }
+
+
 def otags_for(oracle_id: str) -> list[str]:
     ensure_loaded()
     return _store.otag_index.get(oracle_id, [])

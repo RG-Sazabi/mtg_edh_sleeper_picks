@@ -13,6 +13,21 @@
   <main>
     {% block content %}{% endblock %}
   </main>
+  {% set snap = data_snapshot %}
+  {% if snap %}
+  <footer class="data-age{{ ' warn' if snap.warn }}">
+    {% if snap.as_of_date %}
+      Card data as of {{ snap.as_of_date }}
+      {%- if snap.state == 'error' %} — data unavailable, see server log
+      {%- elif snap.last_refresh_failed %} — refresh failed, showing older data
+      {%- elif snap.warn %} — more than {{ snap.age_days | int }} days old{% endif %}
+    {% elif snap.state == 'error' %}
+      Card data unavailable — Scryfall download failed (see server log)
+    {% else %}
+      Card data loading…
+    {% endif %}
+  </footer>
+  {% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>
