@@ -312,7 +312,22 @@ def _is_basic_land(type_line: str) -> bool:
     return "Basic" in type_line.split("—", 1)[0].split()
 
 
+def _is_playable_paper(card: dict) -> bool:
+    """A real paper printing you could sleeve up: excludes digital-only cards,
+    gold-bordered memorabilia (World Championship decks, Collectors' Edition)
+    and oversized cards, whose prices/rarities don't reflect a playable copy."""
+    return (
+        "paper" in (card.get("games") or [])
+        and not card.get("digital")
+        and not card.get("oversized")
+        and card.get("set_type") != "memorabilia"
+        and card.get("border_color") != "gold"
+    )
+
+
 def _trim(card: dict) -> dict:
+    # price_usd / ever_common are overwritten in _build_card_index with values
+    # aggregated across every paper printing of the card.
     price_raw = (card.get("prices") or {}).get("usd")
     legal = (card.get("legalities") or {}).get("commander") == "legal"
     return {
@@ -322,6 +337,7 @@ def _trim(card: dict) -> dict:
         "color_identity": card.get("color_identity", []),
         "price_usd": float(price_raw) if price_raw else None,
         "rarity": card.get("rarity", ""),
+        "ever_common": card.get("rarity") == "common",
         "image_uri": _image_uri(card),
         "edhrec_rank": card.get("edhrec_rank"),
         # "Can be put in a Commander deck": Scryfall's legality, minus meld
@@ -437,6 +453,10 @@ def _build_card_index(
     """
     # oracle_id -> (penalty, highres_rank, released_at, trimmed record)
     best: dict[str, tuple] = {}
+    # Facts aggregated over *every* real paper printing, not just the displayed
+    # one: cheapest non-foil USD price, and whether any printing is common.
+    min_price: dict[str, float] = {}
+    ever_common: set[str] = set()
     for raw in _iter_jsonl(path):
         oid = raw.get("oracle_id", "")
         if not oid:
@@ -449,6 +469,14 @@ def _build_card_index(
         # that has no rules text.
         if raw.get("layout", "") in _EXCLUDED_LAYOUTS:
             continue
+        if _is_playable_paper(raw):
+            usd = (raw.get("prices") or {}).get("usd")  # non-foil market price
+            if usd:
+                price = float(usd)
+                if oid not in min_price or price < min_price[oid]:
+                    min_price[oid] = price
+            if raw.get("rarity") == "common":
+                ever_common.add(oid)
         pen = _printing_penalty(raw)
         highres = 0 if raw.get("highres_image") else 1
         released = raw.get("released_at", "") or ""
@@ -465,6 +493,10 @@ def _build_card_index(
     by_name: dict[str, dict] = {}
     by_oracle_id: dict[str, dict] = {}
     for oid, (_, _, _, rec) in best.items():
+        # The displayed printing (and its `rarity`) is still the cleanest one
+        # chosen above; only the price / common facts span all printings.
+        rec["price_usd"] = min_price.get(oid)
+        rec["ever_common"] = oid in ever_common
         cards.append(rec)
         by_oracle_id[oid] = rec
         name = rec["name"]

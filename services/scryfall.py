@@ -56,6 +56,7 @@ def _empty_card_details() -> dict:
         "type_line": "",
         "price_usd": None,
         "rarity": "",
+        "ever_common": False,
         "image_uri": "",
     }
 
@@ -68,6 +69,8 @@ def _details_from_record(rec: dict) -> dict:
         "type_line": rec["type_line"],
         "price_usd": rec["price_usd"],
         "rarity": rec["rarity"],
+        # Any paper printing is common (rarity stays the displayed printing's).
+        "ever_common": rec["ever_common"],
         "image_uri": rec["image_uri"],
     }
 
@@ -97,6 +100,7 @@ def get_card_details(name: str) -> dict:
         "type_line": data.get("type_line", ""),
         "price_usd": float(price_usd_raw) if price_usd_raw else None,
         "rarity": data.get("rarity", ""),
+        "ever_common": data.get("rarity") == "common",
         "image_uri": image_uri,
     }
     _card_cache[name] = result
@@ -136,6 +140,7 @@ def get_color_identity_pool(color_identity: list[str]) -> list[dict]:
                 "type_line": rec["type_line"],
                 "price_usd": rec["price_usd"],
                 "rarity": rec["rarity"],
+                "ever_common": rec["ever_common"],
                 "image_uri": rec["image_uri"],
                 "buzzword_score": 0.0,
             }
