@@ -91,8 +91,13 @@ def slugify(name: str) -> str:
     "mr-house", "H.E.R.B.I.E." -> "herbie", "Minsc & Boo" -> "minsc-boo"),
     whitespace/dash runs collapsed to one ``-``. The result is always
     ``[a-z0-9-]``, so it is safe to interpolate into a URL path.
+
+    A double-faced card's full name ("Esika, God of the Tree // The Prismatic
+    Bridge", as Archidekt reports it) slugs to its FRONT face, which is how
+    EDHRec names DFC commander pages. Only the spaced `` // `` face separator
+    splits, so "SP//dr, Piloted by Peni" keeps its whole name.
     """
-    text = unicodedata.normalize("NFKD", name)
+    text = unicodedata.normalize("NFKD", name.split(" // ")[0])
     text = "".join(ch for ch in text if not unicodedata.combining(ch)).lower()
     text = text.replace("/", " ")
     text = re.sub(r"[^a-z0-9\s-]", "", text)
