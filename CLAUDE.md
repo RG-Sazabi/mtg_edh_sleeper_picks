@@ -186,7 +186,10 @@ much as a core theme — which made cards stacking many fringe tags (planeswalke
 multi-subtype legends) run away with inflated, nonsensical scores. The weight makes
 a feature matter only if the commander both over-uses it *and* actually plays it
 often. `buzzword_score` (field name kept for template/JS compatibility) holds the
-summed weighted lift; typical top scores are ~0.5–1.0, not 5–7.
+summed weighted lift. Scores are **not comparable across commanders**: the scale
+tracks how far the commander's decks diverge from its color identity (top score
+~0.8–1.0 for Atraxa, ~5–8 for typal or tightly themed commanders such as
+The Ur-Dragon or Krenko).
 
 ---
 
