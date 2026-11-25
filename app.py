@@ -117,13 +117,56 @@ def commander(slug):
     # to 100% inclusion in the scoring path) and get an "In deck" badge.
     deck_id = request.args.get("deck", "")
 
+    # 0b. Validate the free-form query params before they reach an API path.
+    #     Invalid values are dropped (rendered as "Any"/no deck) and reported in
+    #     the data_warning banner, which collects every warning for this request.
+    data_warnings: list[str] = []
+    # ASCII digits only (str.isdigit alone also accepts e.g. superscripts).
+    if deck_id and not (
+        deck_id.isascii() and deck_id.isdigit() and len(deck_id) <= 12
+    ):
+        app.logger.warning("ignoring invalid deck id %r", deck_id)
+        data_warnings.append("Ignored an invalid Archidekt deck id.")
+        deck_id = ""
+    if tag and not edhrec.is_safe_scope_slug(tag):
+        app.logger.warning("ignoring invalid theme tag %r", tag)
+        data_warnings.append("Ignored an invalid theme.")
+        tag = ""
+    if bracket and not edhrec.is_safe_scope_slug(bracket):
+        app.logger.warning("ignoring invalid bracket %r", bracket)
+        data_warnings.append("Ignored an invalid bracket.")
+        bracket = ""
+    if budget not in edhrec.BUDGET_OPTIONS:
+        app.logger.warning("ignoring invalid budget %r", budget)
+        data_warnings.append("Ignored an invalid budget.")
+        budget = ""
+
     # 1. Display view: the fully-composed scope drives the EDHRec tab, featured
     #    rows, the inclusion cross-ref, and the Slept On exclusion set.
-    display_data = edhrec.get_commander_data(
+    display_data, fetch_error = edhrec.fetch_commander_scope(
         slug, tag=tag, budget=budget, bracket=bracket
     )
     info = edhrec.commander_info_from_data(display_data) if display_data else None
     commanders = edhrec.commanders_from_data(display_data) if display_data else []
+    if fetch_error == edhrec.FETCH_NETWORK:
+        return (
+            render_template(
+                "error.html",
+                message="Couldn't reach EDHRec (network problem or EDHRec is "
+                "down). Check your connection and try again in a moment.",
+            ),
+            502,
+        )
+    if display_data and not info:
+        app.logger.error("EDHRec page for %r has no usable commander card", slug)
+        return (
+            render_template(
+                "error.html",
+                message=f"EDHRec returned data for '{slug}' in an unexpected "
+                "format. The app may need updating for an EDHRec change.",
+            ),
+            502,
+        )
     if not info:
         return (
             render_template(
@@ -135,6 +178,22 @@ def commander(slug):
     # 2. Type-category recommendation list + the broad inclusion index + theme
     #    options, all from the display view.
     edhrec_cards = edhrec.cards_from_data(display_data)
+    # Runtime contract check: schema drift (a renamed field zeroing inclusion, a
+    # new list tag) is logged and surfaced as a banner rather than a silently
+    # wrong page. A scope that failed to fetch (fell back to a broader page while
+    # the selectors still show the request) is reported the same way.
+    scope_note = edhrec.scope_fallback_warning(display_data, tag, budget, bracket)
+    if scope_note:
+        app.logger.warning("scope fallback for %r: %s", slug, scope_note)
+        data_warnings.append(scope_note)
+    problems = edhrec.contract_problems(display_data, edhrec_cards)
+    for problem in problems:
+        app.logger.error("EDHRec data check for %r: %s", slug, problem)
+    if problems:
+        data_warnings.append(
+            "EDHRec data looks off (" + "; ".join(problems) + "). Scores and "
+            "Slept On picks may be unreliable."
+        )
     if not edhrec_cards:
         return (
             render_template("error.html", message=f"No card data found for '{slug}'."),
@@ -143,21 +202,23 @@ def commander(slug):
     incl_index = edhrec.inclusion_index_from_data(display_data)
     available_tags = edhrec.available_tags_from_data(display_data)
 
-    # 2b. Display-only featured rows (New / High Synergy / Top) shown atop the
-    #     EDHRec tab. These are NOT added to edhrec_cards or the scoring set.
+    # 2b. Display-only featured rows (New / Top / High Lift) shown atop the
+    #     EDHRec tab. These are separate display dicts; the same cards are already
+    #     in edhrec_cards (EDHRec's meta lists no longer repeat type-list cards).
     featured = edhrec.featured_sections_from_data(display_data)
     featured_cards = [c for sec in featured for c in sec["cards"]]
 
     # 2c. Scoring view: only a tag recomputes feature weights. Budget/bracket
     #     keep scores fixed to the base (no-tag) baseline, so resolve a separate
-    #     scoring view that ignores them. When neither applies, the display view
-    #     IS the scoring view (reuse it to avoid a second fetch + re-enrichment).
-    if tag:
-        scoring_data = edhrec.get_commander_data(slug, tag=tag)
-    elif budget or bracket:
-        scoring_data = edhrec.get_commander_data(slug)
-    else:
+    #     scoring view that ignores them. Whenever the display view already
+    #     served exactly the scoring scope (tag-only, or base), it IS the scoring
+    #     view: reuse it instead of fetching the identical EDHRec URL again.
+    if edhrec.served_scope(display_data) == (tag, ""):
         scoring_data = display_data
+    elif tag:
+        scoring_data = edhrec.get_commander_data(slug, tag=tag)
+    else:
+        scoring_data = edhrec.get_commander_data(slug)
     if scoring_data is display_data:
         scoring_cards = edhrec_cards
     else:
@@ -199,6 +260,9 @@ def commander(slug):
         enrich_targets = enrich_targets + scoring_cards
     for card in enrich_targets:
         card.update(card_details.get(card["name"], scryfall._empty_card_details()))
+    # Meta/unknown-list cards have no EDHRec type list; slot them into their type
+    # group now that their type line is known (never a category named after a tag).
+    edhrec.assign_type_categories(edhrec_cards, display_data)
 
     # 4. Fetch all EDH-legal cards in the commander's color identity
     color_pool = scryfall.get_color_identity_pool(info["color_identity"])
@@ -348,11 +412,20 @@ def commander(slug):
         available_tags=available_tags,
         budget_options=edhrec.BUDGET_OPTIONS,
         bracket_options=edhrec.BRACKET_OPTIONS,
+        data_warning=" ".join(data_warnings),
     )
 
 
 if __name__ == "__main__":
-    debug = True
+    # Debug (reloader + Werkzeug debugger) stays ON by default so `python app.py`
+    # behaves as before; set FLASK_DEBUG=0 (or false/no/off) to turn it off.
+    # FLASK_DEBUG is the variable `flask run` already honours.
+    debug = os.environ.get("FLASK_DEBUG", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
     # Warm the bulk store on startup so the first autocomplete keystroke doesn't
     # pay the ~540MB download/parse cost. Run it in a daemon thread so the server
     # still binds immediately (and code-reload stays snappy); ensure_loaded() is

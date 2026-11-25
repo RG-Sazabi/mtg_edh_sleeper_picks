@@ -231,6 +231,18 @@ h3 {
 
 #slept-on-controls input[type="range"] { width: 120px; accent-color: #e94560; }
 
+/* Data-quality banner shown above the tabs (EDHRec drift / scope fallback). */
+.data-warning {
+  background: #3a2a10;
+  border: 1px solid #e9a045;
+  border-left-width: 4px;
+  border-radius: 6px;
+  color: #f5d9a8;
+  padding: 0.6rem 0.9rem;
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
+}
+
 /* ── Tabs ── */
 nav.tabs {
   display: flex;
