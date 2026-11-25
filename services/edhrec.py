@@ -9,14 +9,68 @@ HEADERS = {"User-Agent": "mtg-edh-sleeper-picks/1.0 (personal project)"}
 
 logger = logging.getLogger(__name__)
 
-# Meta cardlists duplicate cards already present in the type categories, so they
-# are excluded from the recommendation/scoring list (their dedicated display is
-# issue #17). They still feed the broader inclusion index.
-_META_TAGS = {"newcards", "highsynergycards", "topcards", "gamechangers"}
+# Type cardlists: each list's `header` becomes the card's EDHRec-tab category.
+_TYPE_TAGS = {
+    "creatures",
+    "instants",
+    "sorceries",
+    "utilityartifacts",
+    "enchantments",
+    "battles",
+    "planeswalkers",
+    "utilitylands",
+    "manaartifacts",
+    "lands",
+}
 
-# Display-only "featured" rows shown at the top of the EDHRec tab, in EDHRec's
-# order. Subset of _META_TAGS (gamechangers intentionally omitted per AC #17).
-_FEATURED_TAGS = ("newcards", "highsynergycards", "topcards")
+# Meta cardlists (New / Top / High Lift / High Synergy / Game Changers). EDHRec
+# used to repeat these cards inside the type lists; as of Nov 2026 the lists are
+# DISJOINT (0/10 topcards also appear in a type list), so skipping them would drop
+# the commander's most-played cards from scoring and from the type groups. They
+# are therefore part of the recommendation/scoring list, with no category of their
+# own: assign_type_categories() slots them into their type group after enrichment.
+# `highliftcards` replaced `highsynergycards` (Nov 2026); both are kept.
+_META_TAGS = {
+    "newcards",
+    "topcards",
+    "highliftcards",
+    "highsynergycards",
+    "gamechangers",
+}
+
+# Display-only "featured" rows shown at the top of the EDHRec tab, rendered in the
+# page's own order. Subset of _META_TAGS (gamechangers intentionally omitted per
+# AC #17). Any tag outside _TYPE_TAGS | _META_TAGS is "unknown": its cards are
+# treated like meta cards (scored, slotted by type) and never become a category,
+# and contract_problems() flags the tag so the drift is visible.
+_FEATURED_TAGS = ("newcards", "topcards", "highliftcards", "highsynergycards")
+_KNOWN_TAGS = _TYPE_TAGS | _META_TAGS
+
+# Fallback headers for assign_type_categories() (EDHRec's own header text).
+_TYPE_HEADERS = {
+    "creatures": "Creatures",
+    "planeswalkers": "Planeswalkers",
+    "battles": "Battles",
+    "lands": "Lands",
+    "utilitylands": "Utility Lands",
+    "instants": "Instants",
+    "sorceries": "Sorceries",
+    "manaartifacts": "Mana Artifacts",
+    "utilityartifacts": "Utility Artifacts",
+    "enchantments": "Enchantments",
+}
+# Card-type precedence for multi-type cards (creatures only ever land in
+# Creatures, matching EDHRec): first type word found in the front face wins.
+_TYPE_PRECEDENCE = (
+    ("Creature", "creatures"),
+    ("Planeswalker", "planeswalkers"),
+    ("Battle", "battles"),
+    ("Land", "lands"),
+    ("Instant", "instants"),
+    ("Sorcery", "sorceries"),
+    ("Artifact", "utilityartifacts"),
+    ("Enchantment", "enchantments"),
+)
 
 # Static fallback option sets for the budget/bracket selectors (issue #19).
 # EDHRec's numbered game brackets are NOT exposed via the static JSON (403 on
@@ -201,16 +255,23 @@ def _card_from_cardview(cv: dict, category: str) -> dict:
 
 def cards_from_data(data: dict) -> list[dict]:
     """
-    Pure: the type-category recommendation list (meta lists skipped), deduped by
-    name (first occurrence wins), using each list's ``header`` as the category.
+    Pure: the full recommendation/scoring list from every cardlist on the page,
+    deduped by name (first occurrence wins). Type lists are read first so a card
+    they contain keeps its list ``header`` as its category; cards that only appear
+    in a meta or unknown list get ``edhrec_category = ""`` and are slotted into a
+    type group by ``assign_type_categories`` once their type line is known. A list
+    tag therefore never becomes a category by itself.
     """
     if not data:
         return []
+    cardlists = data.get("cardlists", [])
+    typed = [cl for cl in cardlists if cl.get("tag") in _TYPE_TAGS]
+    untyped = [cl for cl in cardlists if cl.get("tag") not in _TYPE_TAGS]
     seen: dict[str, dict] = {}
-    for cardlist in data.get("cardlists", []):
-        if cardlist.get("tag") in _META_TAGS:
-            continue
-        category = cardlist.get("header", "")
+    for cardlist in typed + untyped:
+        category = (
+            cardlist.get("header", "") if cardlist.get("tag") in _TYPE_TAGS else ""
+        )
         for cv in cardlist.get("cardviews", []):
             name = cv.get("name", "")
             if not name or name in seen:
@@ -219,21 +280,55 @@ def cards_from_data(data: dict) -> list[dict]:
     return list(seen.values())
 
 
+def _type_key(card: dict) -> str | None:
+    """Pure: the EDHRec type-list tag a card belongs in, from its front face."""
+    front = (card.get("type_line") or "").split("//")[0]
+    otags = card.get("otags") or []
+    for word, key in _TYPE_PRECEDENCE:
+        if word not in front:
+            continue
+        if key == "utilityartifacts" and any("mana-rock" in t for t in otags):
+            return "manaartifacts"
+        if key == "lands" and "utility-land" in otags:
+            return "utilitylands"
+        return key
+    return None
+
+
+def assign_type_categories(cards: list[dict], data: dict | None = None) -> None:
+    """
+    Pure (mutates in place): give every card with an empty ``edhrec_category``
+    (meta/unknown-list cards, see ``cards_from_data``) the header of its type
+    group, derived from the enriched ``type_line`` / ``otags``. Uses the page's
+    own header text for that type list when present. The mana-vs-utility artifact
+    and land split is a heuristic (``mana-rock*`` / ``utility-land`` otags); a
+    card with no type line falls into "Other".
+    """
+    headers = dict(_TYPE_HEADERS)
+    for cl in (data or {}).get("cardlists", []):
+        if cl.get("tag") in _TYPE_TAGS and cl.get("header"):
+            headers[cl["tag"]] = cl["header"]
+    for card in cards:
+        if card.get("edhrec_category"):
+            continue
+        key = _type_key(card)
+        card["edhrec_category"] = headers[key] if key else "Other"
+
+
 def featured_sections_from_data(data: dict) -> list[dict]:
     """
-    Ordered display-only sections (New / High Synergy / Top) from the EDHRec
-    page container. Each section: {"tag", "header", "cards": [<scoring dict>]}.
-    Empty/missing lists are omitted so the template degrades gracefully. These
-    cards are NOT part of the scoring dataset (see cards_from_data, which skips
-    these tags) — they are rendered for parity only.
+    Ordered display-only rows (New / Top / High Lift / High Synergy) from the
+    EDHRec page container, in the page's order. Each section:
+    {"tag", "header", "cards": [<scoring dict>]}. Empty/missing lists are
+    omitted so the template degrades gracefully. These dicts are display copies:
+    the same cards also sit in ``cards_from_data`` (scored, grouped by type).
     """
     if not data:
         return []
-    by_tag = {cl.get("tag"): cl for cl in data.get("cardlists", [])}
     sections: list[dict] = []
-    for tag in _FEATURED_TAGS:
-        cardlist = by_tag.get(tag)
-        if not cardlist:
+    for cardlist in data.get("cardlists", []):
+        tag = cardlist.get("tag")
+        if tag not in _FEATURED_TAGS:
             continue
         header = cardlist.get("header", "")
         cards = [

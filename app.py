@@ -135,8 +135,9 @@ def commander(slug):
     incl_index = edhrec.inclusion_index_from_data(display_data)
     available_tags = edhrec.available_tags_from_data(display_data)
 
-    # 2b. Display-only featured rows (New / High Synergy / Top) shown atop the
-    #     EDHRec tab. These are NOT added to edhrec_cards or the scoring set.
+    # 2b. Display-only featured rows (New / Top / High Lift) shown atop the
+    #     EDHRec tab. These are separate display dicts; the same cards are already
+    #     in edhrec_cards (EDHRec's meta lists no longer repeat type-list cards).
     featured = edhrec.featured_sections_from_data(display_data)
     featured_cards = [c for sec in featured for c in sec["cards"]]
 
@@ -191,6 +192,9 @@ def commander(slug):
         enrich_targets = enrich_targets + scoring_cards
     for card in enrich_targets:
         card.update(card_details.get(card["name"], scryfall._empty_card_details()))
+    # Meta/unknown-list cards have no EDHRec type list; slot them into their type
+    # group now that their type line is known (never a category named after a tag).
+    edhrec.assign_type_categories(edhrec_cards, display_data)
 
     # 4. Fetch all EDH-legal cards in the commander's color identity
     color_pool = scryfall.get_color_identity_pool(info["color_identity"])
