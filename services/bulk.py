@@ -34,6 +34,7 @@ import gzip
 import json
 import logging
 import os
+import re
 import threading
 import time
 from collections import defaultdict
@@ -243,47 +244,114 @@ def _image_uri(card: dict) -> str:
     return (faces[0].get("image_uris") or {}).get("normal", "")
 
 
+def _front_face(card: dict) -> dict:
+    """The face that is a card's characteristics in every zone but the
+    battlefield-transformed state: ``card_faces[0]`` for DFC/flip/adventure/
+    split layouts, else the card itself."""
+    faces = card.get("card_faces")
+    return faces[0] if faces else card
+
+
+def _type_parts(type_line: str) -> tuple[list[str], list[str]]:
+    """("Legendary Artifact — Vehicle") -> (["Legendary", "Artifact"], ["Vehicle"])."""
+    left, _, right = type_line.partition("—")
+    return left.split(), right.split()
+
+
+# Grist-style characteristic-defining text: "As long as Grist isn't on the
+# battlefield, it's a 1/1 Insect creature in addition to its other types."
+_CREATURE_OFF_BATTLEFIELD = re.compile(
+    r"isn't on the battlefield, it's an? [^.]*\bcreature\b", re.IGNORECASE
+)
+
+
 def _can_be_commander(card: dict) -> bool:
     """
-    Standard ``is:commander`` heuristic: a legendary creature, or any card whose
-    oracle text says it "can be your commander" (the planeswalkers/Backgrounds and
-    similar). Reads the front- plus back-face oracle text so DFC cards qualify.
+    Commander eligibility (rule 903.3 + Scryfall ``is:commander``), judged on
+    the *front* face — a back face that transforms into a legendary creature
+    (flip cards, battles, sagas) does not count in the command zone. True for:
+      - a legendary creature;
+      - a legendary Vehicle or Spacecraft with printed power/toughness;
+      - a legendary card that is a creature while off the battlefield (Grist);
+      - any card whose oracle text says it "can be your commander".
+    Backgrounds are not included: they are only legal as a second commander and
+    are offered through the partner pools instead.
     """
-    type_line = card.get("type_line", "")
-    if "Legendary" in type_line and "Creature" in type_line:
-        return True
+    front = _front_face(card)
+    supertypes, subtypes = _type_parts(front.get("type_line") or "")
+    if "Legendary" in supertypes:
+        if "Creature" in supertypes:
+            return True
+        if (
+            {"Vehicle", "Spacecraft"} & set(subtypes)
+            and front.get("power") is not None
+            and front.get("toughness") is not None
+        ):
+            return True
+        if _CREATURE_OFF_BATTLEFIELD.search(front.get("oracle_text") or ""):
+            return True
     texts = [card.get("oracle_text", "")]
     texts += [face.get("oracle_text", "") for face in card.get("card_faces") or []]
     return any("can be your commander" in t.lower() for t in texts)
 
 
-def _partner_kind(card: dict) -> str:
+# "Partner with Toothy, Imaginary Friend (When this creature enters, ...)"
+_PARTNER_WITH = re.compile(r"^partner with ([^(\n]+?)\s*(?:\(|$)", re.I | re.M)
+# "Partner—Survivors (You can have two commanders if both have this ability.)"
+_PARTNER_VARIANT = re.compile(r"^partner\s*—\s*([^(\n]+?)\s*(?:\(|$)", re.I | re.M)
+# Plain "Partner" on its own line (optionally followed by reminder text).
+_PARTNER_PLAIN = re.compile(r"^partner\s*(?:\(|$)", re.I | re.M)
+
+
+def _partner_kind(card: dict) -> tuple[str, str]:
     """
     Classify a card's partner-pairing eligibility from its keywords, type line,
-    and face oracle texts. One of:
-      "partner"          — Partner / "Partner with X" (one shared pool per rules)
-      "friends_forever"  — Friends forever
-      "choose_background"— pairs with any Background
-      "background"       — a Background (pairs with any "choose a background")
-      ""                 — not partner-eligible
-    Mutually exclusive in practice; checked in priority order. Backgrounds are
-    detected by type line so they qualify even when not ``can_be_commander``.
+    and face oracle texts. Returns ``(kind, detail)``; kinds, in priority order:
+      "friends_forever"   — Partner—Friends forever
+      "choose_background" — pairs with any Background
+      "partner_with"      — "Partner with X": pairs only with X (detail = X)
+      "partner_variant"   — "Partner—<text>": pairs only with the same <text>
+                            (detail = <text>, e.g. "Survivors")
+      "doctors_companion" — pairs with any Time Lord Doctor
+      "partner"           — plain Partner (pairs with any plain Partner)
+      "background"        — a Background (pairs with any "choose a background")
+      "doctor"            — a legendary creature whose only creature types are
+                            Time Lord Doctor (pairs with any Doctor's companion)
+      ""                  — not partner-eligible
+    Backgrounds are detected by type line so they qualify even when not
+    ``can_be_commander``.
     """
     kws = [k.lower() for k in (card.get("keywords") or [])]
-    type_line = card.get("type_line", "")
-    texts = " ".join(
+    raw_texts = "\n".join(
         [card.get("oracle_text", "")]
         + [f.get("oracle_text", "") for f in card.get("card_faces") or []]
-    ).lower()
+    )
+    texts = raw_texts.lower()
     if any("friends forever" in k for k in kws) or "friends forever" in texts:
-        return "friends_forever"
+        return "friends_forever", ""
     if any("choose a background" in k for k in kws) or "choose a background" in texts:
-        return "choose_background"
-    if any(k.startswith("partner") for k in kws) or "\npartner" in ("\n" + texts):
-        return "partner"
-    if "Background" in type_line:
-        return "background"
-    return ""
+        return "choose_background", ""
+    match = _PARTNER_WITH.search(raw_texts)
+    if match:
+        return "partner_with", match.group(1).strip()
+    match = _PARTNER_VARIANT.search(raw_texts)
+    if match:
+        return "partner_variant", match.group(1).strip()
+    if "doctor's companion" in kws or "doctor's companion" in texts:
+        return "doctors_companion", ""
+    if "partner" in kws or _PARTNER_PLAIN.search(raw_texts):
+        return "partner", ""
+    front_types = _front_face(card).get("type_line") or card.get("type_line", "")
+    supertypes, subtypes = _type_parts(front_types)
+    if "Background" in subtypes:
+        return "background", ""
+    if (
+        "Legendary" in supertypes
+        and "Creature" in supertypes
+        and subtypes == ["Time", "Lord", "Doctor"]
+    ):
+        return "doctor", ""
+    return "", ""
 
 
 def _is_meld_result(card: dict) -> bool:
@@ -330,6 +398,7 @@ def _trim(card: dict) -> dict:
     # aggregated across every paper printing of the card.
     price_raw = (card.get("prices") or {}).get("usd")
     legal = (card.get("legalities") or {}).get("commander") == "legal"
+    partner_kind, partner_detail = _partner_kind(card)
     return {
         "name": card.get("name", ""),
         "oracle_id": card.get("oracle_id", ""),
@@ -346,7 +415,9 @@ def _trim(card: dict) -> dict:
         "commander_legal": legal and not _is_undeckable(card),
         "layout": card.get("layout", ""),
         "can_be_commander": _can_be_commander(card),
-        "partner_kind": _partner_kind(card),
+        "partner_kind": partner_kind,
+        # partner_with: the named partner; partner_variant: the "Partner—" text.
+        "partner_detail": partner_detail,
     }
 
 
@@ -763,24 +834,47 @@ def commander_names() -> list[str]:
     return store.commander_names
 
 
+# partner_kind -> the pool its legal partners are drawn from.
+_PARTNER_COMPLEMENT = {
+    "partner": "partner",
+    "friends_forever": "friends_forever",
+    "choose_background": "background",
+    "background": "choose_background",
+    "doctors_companion": "doctor",
+    "doctor": "doctors_companion",
+}
+
+
+def _partner_pool_key(rec: dict) -> str:
+    """Pool a record belongs to: its kind, or "partner_variant:<text>" so each
+    "Partner—<text>" family only pairs within itself. "" for no pool
+    (partner_with pairs by name, not by pool)."""
+    kind = rec.get("partner_kind", "")
+    if kind == "partner_variant":
+        return f"partner_variant:{rec.get('partner_detail', '').casefold()}"
+    if kind == "partner_with":
+        return ""
+    return kind
+
+
 def _partner_pools_built() -> dict[str, list[str]]:
     """
-    {partner_kind -> sorted front-face names}. Built once per process and
-    memoized. ``background`` cards are pooled by type regardless of
-    ``can_be_commander`` (they are only ever offered as the second pick); all
-    other kinds require ``commander_legal``.
+    {pool key -> sorted front-face names}. Memoized per store. ``background``
+    cards are pooled by type regardless of ``can_be_commander`` (they are only
+    ever offered as the second pick); all other kinds require
+    ``commander_legal``.
     """
     ensure_loaded()
     store = _store
     if store.partner_pools is None:
         pools: dict[str, set[str]] = defaultdict(set)
         for rec in store.cards:
-            kind = rec.get("partner_kind", "")
-            if not kind or not rec["name"]:
+            key = _partner_pool_key(rec)
+            if not key or not rec["name"]:
                 continue
             front = rec["name"].split(" // ", 1)[0]
-            if kind == "background" or rec["commander_legal"]:
-                pools[kind].add(front)
+            if key == "background" or rec["commander_legal"]:
+                pools[key].add(front)
         store.partner_pools = {
             kind: sorted(names, key=str.casefold) for kind, names in pools.items()
         }
@@ -790,22 +884,26 @@ def _partner_pools_built() -> dict[str, list[str]]:
 def legal_partners_for(name: str) -> list[str]:
     """
     Sorted legal partner names for a card, per its ``partner_kind``:
-      partner -> other partners; friends_forever -> other friends_forever;
-      choose_background -> all Backgrounds; background -> all choose-a-background
-      commanders; otherwise []. The card itself is never in its own pool.
+      partner -> other plain partners; partner_with -> only the named card;
+      partner_variant -> same "Partner—<text>" family; friends_forever -> other
+      friends_forever; choose_background <-> Backgrounds; doctors_companion <->
+      Time Lord Doctors; otherwise []. The card itself is never in its own pool.
     """
     rec = card_record(name)
     if not rec:
         return []
     kind = rec.get("partner_kind", "")
     front = rec["name"].split(" // ", 1)[0]
+    if kind == "partner_with":
+        other = card_record(rec.get("partner_detail", ""))
+        if other and other["commander_legal"]:
+            return [other["name"].split(" // ", 1)[0]]
+        return []
     pools = _partner_pools_built()
-    pool_key = {
-        "partner": "partner",
-        "friends_forever": "friends_forever",
-        "choose_background": "background",
-        "background": "choose_background",
-    }.get(kind)
+    if kind == "partner_variant":
+        pool_key = _partner_pool_key(rec)
+    else:
+        pool_key = _PARTNER_COMPLEMENT.get(kind)
     if not pool_key:
         return []
     return [n for n in pools.get(pool_key, []) if n != front]
