@@ -1,0 +1,508 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\titlespacing{\section}{0pt}{1.1em}{0.5em}
+\titlespacing{\subsection}{0pt}{0.9em}{0.3em}
+\setlist[itemize]{itemsep=1pt, topsep=2pt}
+\setlist[enumerate]{itemsep=1pt, topsep=2pt}
+\newtheorem{proposition}{Proposition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+\newcommand{\otag}[1]{\texttt{#1}}
+
+\title{Feature Lift as Divergence:\\
+Theory, Estimation, and Validation of the\\
+Slept-On Score for Commander Recommendations}
+\author{Claude (Anthropic)\\
+\small Product manager, MTG EDH Sleeper Picks\\
+\small Building on D.~Ferrone, ``Feature-Based Card Scoring for Commander Recommendations'' (2026)}
+\date{November 25, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent Ferrone (2026) proposed scoring Magic: The Gathering cards for a
+commander by summing the log-lifts of the card's features, where a feature's lift
+compares its inclusion rate in the commander's decks against a color-identity
+baseline. This paper develops the theory behind the version of that model now
+running in the Sleeper Picks application. We make four contributions. First, we
+show that the baseline can be recovered exactly from public data and that the
+feature lift is a baseline-weighted mean of per-card lifts. Second, we show that
+the application's inclusion-weighted score is a sum of pointwise terms of a
+generalized Kullback--Leibler divergence, which explains both why it fixed the
+original model's instability and why scores are not comparable across
+commanders. Third, we identify six estimation problems that follow from the
+shape of the available data (truncation, censoring, additivity, collinearity,
+small support, and features without functional meaning) and measure each. Fourth, we validate the score with a
+leave-one-out experiment on four commanders: a held-out high-synergy card lands
+in the top 5\% of its candidate pool 35--59\% of the time, against 5\% by chance.
+The same experiment shows that the inclusion weighting improves on the original
+unweighted sum and that a square-root length normalization improves top-of-list
+recall further for three of the four commanders.
+\end{abstract}
+
+\section{Introduction}
+\noindent Commander recommendation sites rank cards by how often they appear in
+decks built around a given commander. That signal is reliable for established
+cards and silent for everything else: a card that fits a strategy but is new,
+obscure, or simply overlooked has no inclusion history to rank on. Ferrone
+(2026) addressed this with a feature-based model. Each card is described by
+features (card types, subtypes, and community-maintained oracle tags), each
+feature is scored by how much the commander's decks over-use it relative to
+other commanders of the same color identity, and a card's score is the sum of
+its features' scores. Because feature scores are estimated from cards that do
+have history, a card with none can still be scored.
+
+The Sleeper Picks application implements that model and uses it to surface
+``slept-on'' cards: high-scoring cards that few of the commander's decks play.
+Building it exposed gaps between the model as written and the model as it can be
+estimated from public data, and prompted several modifications. This paper
+states those modifications precisely, explains why they behave as they do, and
+tests them. Sections \ref{sec:setting}--\ref{sec:ext} cover the model,
+Section~\ref{sec:est} covers what goes wrong in estimation, Section~\ref{sec:val}
+reports the validation experiment, and Section~\ref{sec:impl} lists the changes
+the evidence supports.
+
+All measurements were taken on November 25, 2026 for four commanders chosen to
+span color identities and strategies: \emph{Vazi, Keen Negotiator} (three colors,
+Treasure and artifacts), \emph{Atraxa, Praetors' Voice} (four colors, several
+competing themes), \emph{The Ur-Dragon} (five colors, typal), and \emph{Krenko,
+Mob Boss} (one color, typal). Unless stated otherwise, features are oracle tags
+only, capped at the application's default hierarchy level, with minimum support
+three; these are the application's defaults. Card and tag data (Scryfall) and
+inclusion data (EDHRec) were all retrieved that day.
+
+\section{Setting and Notation}\label{sec:setting}
+\noindent We keep Ferrone's notation and add what estimation requires. For a
+commander $X$:
+\begin{itemize}
+  \item $B(X)$ is the set of other commanders sharing $X$'s color identity, and
+        $C(X)$ is the \emph{candidate pool}: every Commander-legal card within
+        that color identity.
+  \item $i_{c,X}$ is the inclusion rate of card $c$ among decks for $X$, and
+        $i_{c,B(X)}$ is its inclusion rate across decks for commanders in $B(X)$.
+        We abbreviate $i_c = i_{c,X}$ and $b_c = i_{c,B(X)}$.
+  \item $x_{c,f}\in\{0,1\}$ indicates that card $c$ has feature $f$, and
+        $k_c=\sum_f x_{c,f}$ counts a card's features.
+  \item $R(X)\subset C(X)$ is the \emph{recommended set}: the cards for which
+        inclusion data are published for $X$. $R_f=\{c\in R(X): x_{c,f}=1\}$ and
+        $n_f=|R_f|$ is the \emph{support} of $f$.
+\end{itemize}
+The distinction between $C(X)$ and $R(X)$ does not appear in the original paper
+and drives most of Section~\ref{sec:est}. In our sample $|R(X)|$ is 220--288
+while $|C(X)|$ is 7{,}612--32{,}576.
+
+\section{The Baseline Is Recoverable Exactly}\label{sec:baseline}
+\noindent The model needs $b_c$, which is not published. EDHRec does publish a
+\emph{synergy} value $s_c$ for each recommended card, defined as the card's
+inclusion for the commander minus its inclusion across the color identity. Hence
+\begin{equation}\label{eq:baseline}
+  b_c = i_c - s_c ,
+\end{equation}
+and both terms on the right are on the commander's page, so the baseline costs no
+additional data. Define the \emph{card lift} $\lambda_c = i_c/b_c$.
+
+We can check \eqref{eq:baseline} directly. EDHRec's data now carry a per-card
+\texttt{lift} field. For Atraxa, The Ur-Dragon, and Krenko, the published value
+equals $i_c/(i_c-s_c)$ on every card to within $10^{-14}$ (221--288 cards each).
+For Vazi the median absolute difference is $2.8\times10^{-4}$ with a maximum of
+$0.038$; we did not investigate the cause. In no case was $b_c\le 0$.
+
+\begin{remark}
+Ferrone specifies a leave-one-out baseline that excludes $X$'s own decks.
+Public data do not reveal whether the published synergy uses one, so the
+application inherits whatever convention the source uses.
+\end{remark}
+
+\section{Feature Lift and Its Structure}\label{sec:lift}
+\noindent Following Ferrone, with averages taken over the cards for which data
+exist,
+\begin{equation}\label{eq:px}
+  P_X(f)=\frac{1}{n_f}\sum_{c\in R_f} i_c,\qquad
+  P_B(f)=\frac{1}{n_f}\sum_{c\in R_f} b_c,\qquad
+  \ell_f=\log\frac{P_X(f)}{P_B(f)} .
+\end{equation}
+
+\begin{proposition}\label{prop:weighted}
+The feature lift is the baseline-weighted mean of the lifts of the cards that
+carry the feature:
+\[
+  \frac{P_X(f)}{P_B(f)}=\frac{\sum_{c\in R_f} b_c\,\lambda_c}{\sum_{c\in R_f} b_c}.
+\]
+\end{proposition}
+\begin{proof}
+The factors $1/n_f$ cancel, and $i_c=b_c\lambda_c$.
+\end{proof}
+
+\noindent Two consequences follow. A feature's lift is dominated by the carriers
+that are popular across the color identity, so a single staple can set the lift
+of a rare feature. And a feature carried by exactly one set of cards as another
+feature has exactly the same lift, a point we return to in
+Section~\ref{sec:collinear}.
+
+\section{From Log-Lift to Divergence}\label{sec:div}
+\noindent Ferrone's score is $\sum_f x_{c,f}\,\ell_f$. The log-lift is invariant
+to scale: a feature whose carriers average 6\% inclusion against a 3\% baseline
+scores the same $\log 2$ as one whose carriers average 60\% against 30\%. In the
+first implementation this let cards carrying many fringe features, each with a
+large lift estimated from a few low-inclusion cards, dominate the rankings. The
+application therefore weights each feature by how much the commander's decks
+actually play it:
+\begin{equation}\label{eq:weight}
+  w_f = P_X(f)\,\log\frac{P_X(f)}{P_B(f)},\qquad
+  \mathrm{Score}(c,X)=\sum_{f:\,x_{c,f}=1,\ n_f\ge m} w_f ,
+\end{equation}
+with minimum support $m=3$.
+
+This weight has a standard interpretation. Treat $P_X$ and $P_B$ as non-negative
+measures on the feature set (they need not sum to one). Their generalized
+Kullback--Leibler divergence (Kullback and Leibler, 1951), or I-divergence
+(Csisz\'ar, 1975), is
+\begin{equation}\label{eq:idiv}
+  D(P_X\,\|\,P_B)=\sum_f\Big[P_X(f)\log\frac{P_X(f)}{P_B(f)}-P_X(f)+P_B(f)\Big]\ \ge 0 ,
+\end{equation}
+and $w_f$ is the first term of each summand. A feature's weight is its
+contribution to how far the commander's feature profile departs from its color
+identity's, and a card's score is the amount of that departure the card's
+features account for. The log-lift itself is the pointwise mutual information
+between feature and commander (Church and Hanks, 1990), so $w_f$ is to $\ell_f$
+what expected mutual information is to its pointwise form.
+
+\begin{proposition}\label{prop:bound}
+For fixed $P_B(f)=q$, the weight is bounded below by $-q/e$, attained at
+$P_X(f)=q/e$, and is unbounded above only through the logarithm: $w_f\le
+\log(1/q)$.
+\end{proposition}
+\begin{proof}
+$g(p)=p\log(p/q)$ has $g'(p)=\log(p/q)+1$, zero at $p=q/e$, where $g=-q/e$; $g$ is
+convex. For the upper bound, $p\le 1$.
+\end{proof}
+
+\noindent So the weighting is deliberately asymmetric. Ferrone's log-lift treats
+a feature at half its baseline as exactly as informative as one at double. Under
+\eqref{eq:weight} over-use is rewarded in proportion to how much it is played,
+while under-use can cost at most $q/e$. The model says ``this commander wants
+this'' loudly and ``this commander avoids this'' quietly, which suits a tool
+whose purpose is to nominate additions.
+
+\paragraph{Scores are not comparable across commanders.}
+Because the weights are terms of \eqref{eq:idiv}, their overall size tracks how
+distinctive the commander is. Table~\ref{tab:profile} reports $D$ over supported
+features: 1.7 for Atraxa against 15.2--37.4 for the others, and the top candidate
+score follows it (0.95 against 7.9--13.2). A score of 0.8 is exceptional for
+Atraxa and unremarkable for Krenko. $D$ is useful in its own right as an index of
+how much a commander's decks differ from generic decks in its colors.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrrrrr}
+\toprule
+Commander & $|R|$ & $|C|$ & Features & Positive & $\ell_0$ & $D$ & Top score\\
+\midrule
+Vazi, Keen Negotiator    & 258 & 18{,}672 & 162 & 139 & 0.78 & 37.4 & 13.24\\
+Atraxa, Praetors' Voice  & 288 & 25{,}129 & 173 & 129 & 0.17 &  1.7 & 0.95\\
+The Ur-Dragon            & 243 & 32{,}576 & 174 & 172 & 0.77 & 29.1 & 7.94\\
+Krenko, Mob Boss         & 220 &  7{,}612 & 135 & 115 & 0.75 & 15.2 & 8.49\\
+\bottomrule
+\end{tabular}
+\caption{Model profile per commander. ``Features'' counts features with support
+at least three; ``Positive'' counts those with $w_f>0$; $\ell_0$ is the global
+log-lift of Section~\ref{sec:trunc}; $D$ is \eqref{eq:idiv} over supported
+features.}\label{tab:profile}
+\end{table}
+
+\section{Extensions in the Application}\label{sec:ext}
+\subsection{Conditioning on a specific deck}
+\noindent When the user supplies a decklist $\Delta$, the application replaces
+the inclusion of each recommended card in the deck by one:
+\begin{equation}
+  \tilde{\imath}_c=\begin{cases}1 & c\in\Delta\cap R(X)\\ i_c & \text{otherwise,}\end{cases}
+  \qquad
+  P_X^{\Delta}(f)=\frac{1}{n_f}\sum_{c\in R_f}\tilde{\imath}_c ,
+\end{equation}
+leaving $P_B$ unchanged. This treats the user's deck as a population of one in
+which its own cards have inclusion one, and it tilts weights toward the features
+this particular build has committed to. Its limitation is visible in the formula:
+only $\Delta\cap R(X)$ contributes. A deck's most idiosyncratic cards are the ones
+least likely to be in $R(X)$, and they are ignored, because a card outside $R(X)$
+has no baseline. Extending the tilt to those cards requires imputing $b_c$
+(Section~\ref{sec:impl}).
+
+\subsection{Feature granularity}
+\noindent Oracle tags form a directed acyclic graph from broad parents to
+specific children. The application caps tags at a chosen depth $N$: a tag at
+depth at most $N$ is kept, and a deeper tag is replaced by all of its ancestors
+at depth $N$. Coarser features have larger support and lower variance but blur
+distinctions the commander may care about. Types and subtypes can be added as
+flat features; they are off by default so that functional tags drive the score.
+
+\section{Estimation Problems}\label{sec:est}
+\noindent The model's definitions are clean. Its estimates inherit six problems
+from the data.
+
+\subsection{Truncation of the recommended set}\label{sec:trunc}
+\noindent $R(X)$ is not a sample of $C(X)$. A card is published on a commander's
+page because its inclusion there is high: on the per-type lists that make up
+most of $R(X)$, the lowest inclusion is 5.0--5.2\% in all four commanders, and
+only a short list of newly released cards goes lower. The averages in
+\eqref{eq:px} are therefore conditional on $i_c$ exceeding a floor, while $b_c$
+is unconstrained. Define the
+\emph{global lift} of the trivial feature carried by every card,
+\begin{equation}
+  \ell_0=\log\frac{\sum_{c\in R(X)} i_c}{\sum_{c\in R(X)} b_c}.
+\end{equation}
+Without truncation $\ell_0$ would be near zero. It is 0.75--0.78 for three
+commanders and 0.17 for Atraxa (Table~\ref{tab:profile}); for those three, mean
+inclusion on the page is roughly twice the mean baseline. Every feature inherits
+this offset, so most features have positive lift regardless of their content: 172
+of 174 for The Ur-Dragon. A feature's log-lift measures ``cards on this page are over-played
+here'' plus the feature-specific signal the model is after. The natural
+correction is to center: $\ell'_f=\ell_f-\ell_0$. We test it in
+Section~\ref{sec:val}.
+
+\subsection{Censoring of candidates}
+\noindent The same floor censors the candidates. A candidate outside $R(X)$ has
+inclusion somewhere in $[0,\,\approx\!0.05)$, not zero, and the application has
+displayed it as zero. Among the top 100 candidates, 69--79 have no published
+inclusion. Two consequences: a filter that hides cards above an inclusion
+threshold can only act on the minority with data, and ``0\%'' overstates how
+unknown a card is.
+
+\subsection{Additivity and the feature-count confound}\label{sec:additive}
+\noindent Summing log-lifts is the log-likelihood ratio of a naive Bayes model in
+which only present features contribute (Good, 1950). With nearly all weights
+positive (Section~\ref{sec:trunc}), the score grows with the number of features a
+card carries. Across each candidate pool the Spearman correlation between score
+and the number of weighted features is 0.73--0.82, and the top 100 candidates
+carry 9.6--10.9 weighted features against a pool mean of 3.3--3.6. Oracle tags are
+crowd-sourced and unevenly applied: complex, popular, and legendary cards are
+tagged more thoroughly. Part of what the score measures is how much attention
+taggers have paid to a card.
+
+\subsection{Collinear features}\label{sec:collinear}
+\noindent By Proposition~\ref{prop:weighted}, features with the same carrier set
+in $R(X)$ have identical weights, and the sum counts them once each. For The
+Ur-Dragon, \otag{roll-d20} and \otag{cycle-clb-ancient-dragon} are carried by
+the same five cards and each has $w_f=0.779$, so a card with both gains 1.56 for
+what is one fact. For Atraxa, three land tags share the same six carriers and
+together subtract 0.28. There are five such groups among The Ur-Dragon's 174
+features and three among Atraxa's 173. The naive Bayes independence assumption
+fails here in the most direct way possible, and the failure is detectable
+without any modeling: identical carrier sets can be collapsed exactly.
+
+\subsection{Small support}
+\noindent With $m=3$, a weight can rest on three cards. Features with support at
+most five account for 45--58\% of total positive weight across the four
+commanders. These estimates have high variance, and the largest weights are
+disproportionately drawn from them (for The Ur-Dragon, each of the seven largest
+has support of three or four).
+The standard remedy is shrinkage toward a pooled estimate (Efron and Morris,
+1973; Monroe et al., 2008): with $\kappa$ pseudo-cards at the page means
+$\bar{\imath},\bar{b}$,
+\begin{equation}
+  \tilde{P}_X(f)=\frac{\sum_{c\in R_f} i_c+\kappa\,\bar{\imath}}{n_f+\kappa},\qquad
+  \tilde{P}_B(f)=\frac{\sum_{c\in R_f} b_c+\kappa\,\bar{b}}{n_f+\kappa},
+\end{equation}
+which pulls a poorly supported lift toward $\ell_0$ and, after centering, toward
+zero. We have not yet tested this.
+
+\subsection{Features without functional meaning}
+\noindent The model treats features as exchangeable. They are not. Atraxa's
+seventh-largest weight of 173 belongs to \otag{eponymous}, a tag for cards that share a
+name with something else, carried in $R(X)$ by four basic lands ($P_X=0.91$,
+$P_B=0.78$). Tags describing a card's printing history, naming, or rules trivia
+carry no information about what a card does in a deck, yet they pass every
+statistical filter. Excluding them is a prior that their true lift is zero, and
+it has to come from domain knowledge.
+
+\section{Validation}\label{sec:val}
+\subsection{Protocol}
+\noindent The model claims to recognize cards a commander's players would adopt,
+without using those cards' own history. We test that claim by leave-one-out. For
+each $c\in R(X)$ we recompute every weight from $R(X)\setminus\{c\}$, score $c$,
+score every candidate in $C(X)\setminus R(X)$ (excluding basic lands), and record
+the fraction of those candidates that $c$ outranks. Averaged over held-out cards,
+that fraction is an AUC: the probability that a held-out card outranks a random
+unrecommended one.
+
+$R(X)$ mixes two kinds of card: those specific to the commander and generic
+staples of its colors. The model is built to find the first kind. We therefore
+report results for the top quartile of $R(X)$ by published synergy (55--72 cards
+per commander) and, separately, for the bottom quartile. We compare seven scores:
+the number of features alone; Ferrone's unweighted sum of log-lifts; the
+application's weighted sum \eqref{eq:weight}; the weighted sum divided by $k$
+(mean) and by $\sqrt{k}$, where $k$ counts the card's weighted features; and the
+weighted sum and its $\sqrt{k}$ form with centered lifts.
+
+\subsection{Results}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{l ccc ccc ccc ccc}
+\toprule
+ & \multicolumn{3}{c}{Vazi} & \multicolumn{3}{c}{Atraxa} & \multicolumn{3}{c}{Ur-Dragon} & \multicolumn{3}{c}{Krenko}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}\cmidrule(lr){11-13}
+Score & AUC & 5\% & 1\% & AUC & 5\% & 1\% & AUC & 5\% & 1\% & AUC & 5\% & 1\%\\
+\midrule
+Feature count            & .68 & .06 & .02 & .47 & .06 & .01 & .71 & .08 & .00 & .58 & .11 & .05\\
+Unweighted sum (Ferrone) & .90 & .55 & .23 & .71 & .22 & .10 & .87 & .54 & .18 & .77 & .36 & .20\\
+Weighted sum (current)   & .91 & .59 & .31 & .79 & .35 & .15 & .89 & .51 & .30 & .79 & .45 & .22\\
+Weighted mean            & .87 & .41 & .08 & .76 & .33 & .12 & .77 & .11 & .00 & .79 & .25 & .05\\
+Weighted, $\sqrt{k}$     & .92 & .64 & .38 & .80 & .49 & .32 & .88 & .48 & .26 & .81 & .55 & .27\\
+Centered sum             & .92 & .61 & .36 & .73 & .39 & .24 & .87 & .46 & .30 & .81 & .47 & .24\\
+Centered, $\sqrt{k}$     & .92 & .61 & .33 & .73 & .46 & .31 & .84 & .43 & .20 & .82 & .53 & .27\\
+\bottomrule
+\end{tabular}
+\caption{Leave-one-out results for held-out cards in the top synergy quartile
+($n=64, 72, 61, 55$; 252 in all). ``5\%'' and ``1\%'' are the share of held-out cards ranked in
+the top 5\% and top 1\% of the unrecommended candidate pool; chance is .05 and
+.01.}\label{tab:loo}
+\end{table}
+
+\noindent Table~\ref{tab:loo} supports five conclusions.
+\begin{enumerate}
+  \item \textbf{The model works on its intended target.} With its own history
+        removed, a high-synergy card is ranked in the top 5\% of candidates
+        35--59\% of the time and in the top 1\% 15--31\% of the time, seven to
+        thirty-one times the chance rate. AUC is 0.79--0.91.
+  \item \textbf{Inclusion weighting improves on the unweighted sum.} It matches
+        or beats Ferrone's original score on eleven of the twelve entries, most
+        clearly at the top of the list: top-1\% recall rises for all four
+        commanders, and pooled over the 252 held-out cards it rises from 44 to 61.
+  \item \textbf{The feature-count confound is real but is not the explanation.}
+        Feature count alone reaches AUC 0.47--0.71 and almost no top-1\% recall.
+  \item \textbf{Square-root normalization helps on balance; mean normalization
+        hurts.} Dividing by $\sqrt{k}$ raises both recall figures for three
+        commanders (top-1\% recall for Atraxa doubles) and lowers both for The
+        Ur-Dragon, by two cards each. Pooled, top-5\% recall rises from 119 to
+        135 of 252 and top-1\% recall from 61 to 78. Dividing by $k$ removes the
+        dependence on feature count by construction and destroys top-of-list
+        recall, because it rewards cards with one strong feature over cards with
+        several.
+  \item \textbf{Centering is not a clear improvement.} It raises top-1\% recall
+        for three commanders and ties the fourth, but lowers AUC for Atraxa and
+        The Ur-Dragon, and its pooled recall (121 and 71) is below that of
+        $\sqrt{k}$ normalization at both cutoffs. The offset $\ell_0$ is partly
+        doing useful work: it rewards a candidate for resembling the page at
+        all.
+\end{enumerate}
+
+Two further results are not in the table. For the bottom synergy quartile, the
+current score's AUC is 0.25--0.38: generic staples are ranked \emph{below} the
+typical unrecommended card. Over all of $R(X)$ the AUC is therefore only
+0.57--0.63. The score measures fit to this commander, not card quality, which is
+the intended behavior for a tool meant to complement a popularity ranking.
+Within $R(X)$, the Spearman correlation between a card's leave-one-out score and
+its published synergy is 0.57--0.68 for the current score and 0.61--0.69 with
+$\sqrt{k}$ normalization.
+
+\subsection{Limitations}
+\noindent Four commanders is a small sample, and each top-quartile cell rests on
+55--72 cards, so one card moves a recall figure by 1.4--1.8 points; differences
+of a few points between rows are within noise. Leave-one-out removes a card but not
+its near-duplicates, so a cycle of five similar cards vouch for one another and
+the estimates are optimistic for typal commanders. The held-out targets come from
+the same truncated list as the training data. The experiment tests one feature
+configuration.
+
+\section{The Motivating Example Revisited}
+\noindent Ferrone illustrated the model with two cards for Vazi, Keen Negotiator.
+\emph{Biotech Specialist} was offered as a card whose fit was apparent before
+deck data reflected it. That lag has now closed: its published inclusion for Vazi
+is 23.1\% with synergy $+21.4$ points. The current model scores it 3.32, rank
+1{,}030 of 18{,}672 candidates (top 6\%), driven by \otag{burn-player}
+($+0.88$), \otag{pinger} ($+0.77$), and \otag{synergy-artifact} ($+0.64$).
+\emph{Gadrak, the Crown-Scourge} was offered as a high-scoring card that Vazi
+decks do not play. It still has no published inclusion, and the current model
+scores it 3.31, rank 1{,}039 (top 6\%), driven by \otag{ramp} ($+0.76$),
+\otag{repeatable-treasures} ($+0.72$), and \otag{artifact-count-matters}
+($+0.69$).
+
+Both cards sit in the top decile and neither is near the top of the list. The
+top 100 of Vazi's ranking average 10.5 weighted features against 3.5 for the pool,
+as Section~\ref{sec:additive} predicts; Biotech Specialist carries eight and
+Gadrak five. Both cards also receive $+0.49$ from
+\otag{triggered-ability}, a feature with no bearing on Vazi's strategy, which is
+the offset of Section~\ref{sec:trunc} in miniature. The example supports the
+model's premise and shows the cost of its estimation problems in the same
+breath.
+
+\section{Implications}\label{sec:impl}
+\noindent In order of evidence:
+\begin{enumerate}
+  \item \textbf{Adopt $\sqrt{k}$ normalization} (tested; Table~\ref{tab:loo};
+        better pooled recall, with a small loss for one typal commander that
+        should be re-examined after item 2).
+  \item \textbf{Collapse features with identical carrier sets} (exact; follows
+        from Proposition~\ref{prop:weighted}; untested).
+  \item \textbf{Exclude non-functional tags and basic lands from estimation}
+        (domain prior; untested).
+  \item \textbf{Shrink poorly supported lifts} (standard; untested).
+  \item \textbf{Report a normalized fit} such as the candidate's percentile within
+        its pool, so that scores mean the same thing for every commander.
+  \item \textbf{Display censored inclusion as unknown}, not as zero.
+  \item \textbf{Impute baselines for off-page deck cards} so that deck
+        conditioning uses the whole deck. A candidate's baseline could be
+        estimated from the mean $b_c$ of recommended cards sharing its features.
+  \item \textbf{Do not center lifts} on present evidence.
+\end{enumerate}
+The leave-one-out protocol is cheap (6--25 seconds per commander) and should be
+kept as a regression test: any proposed change to scoring can be accepted or
+rejected on whether it improves top-of-list recall across a fixed panel of
+commanders.
+
+\section{Conclusion}
+\noindent The feature-lift model rests on a sound identity, and its weighted form
+has a clean reading as a decomposition of the divergence between a commander's
+decks and its color identity. Tested without access to a card's own history, it
+recognizes the cards a commander's players have adopted at many times the chance
+rate, which is the property a recommender for overlooked cards needs. Its
+weaknesses come from the data it is estimated on: a truncated list, censored
+candidates, and uneven tagging. Each can be measured, and the first correction
+we tested improved the pooled result.
+
+\begin{thebibliography}{9}
+\bibitem{church} K.~W. Church and P.~Hanks. Word association norms, mutual
+information, and lexicography. \emph{Computational Linguistics}, 16(1):22--29,
+1990.
+\bibitem{csiszar} I.~Csisz\'ar. I-divergence geometry of probability
+distributions and minimization problems. \emph{Annals of Probability},
+3(1):146--158, 1975.
+\bibitem{efron} B.~Efron and C.~Morris. Stein's estimation rule and its
+competitors---an empirical Bayes approach. \emph{Journal of the American
+Statistical Association}, 68(341):117--130, 1973.
+\bibitem{ferrone} D.~Ferrone. Feature-based card scoring for Commander
+recommendations. Unpublished manuscript, June 19, 2026.
+\bibitem{good} I.~J. Good. \emph{Probability and the Weighing of Evidence}.
+Charles Griffin, London, 1950.
+\bibitem{kl} S.~Kullback and R.~A. Leibler. On information and sufficiency.
+\emph{Annals of Mathematical Statistics}, 22(1):79--86, 1951.
+\bibitem{monroe} B.~L. Monroe, M.~P. Colaresi, and K.~M. Quinn. Fightin' words:
+lexical feature selection and evaluation for identifying the content of
+political conflict. \emph{Political Analysis}, 16(4):372--403, 2008.
+\end{thebibliography}
+
+\appendix
+\section{Reproducibility}
+\noindent The measurements in Sections~\ref{sec:div}--\ref{sec:val} were produced
+by two scripts stored beside this paper, \texttt{experiments/profile.py} and
+\texttt{experiments/leave\_one\_out.py}, run against the application's own
+service modules. Both are read-only and make one request per commander to
+EDHRec. Results will drift as inclusion data and tags change; the figures here
+are a snapshot; the raw output of both runs is stored with the scripts.
+
+The figures were measured after two defects in the application were fixed the
+same day. Before the fix, the candidate pool contained a few unplayable entries
+(meld back faces, basic lands), and $R(X)$ omitted the source's ``New'', ``Top'',
+and ``High Lift'' lists, about fifteen cards per commander including the ten
+most-played. An earlier run on the uncorrected data led to the same five
+conclusions in Section~\ref{sec:val}, with one difference: there,
+$\sqrt{k}$ normalization tied the current score on top-1\% recall for one
+commander and did not fall below it for any.
+\end{document}

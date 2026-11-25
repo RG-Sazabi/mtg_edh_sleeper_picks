@@ -1,0 +1,2457 @@
+{
+ "_load_s": 8.5,
+ "vazi-keen-negotiator": {
+  "name": "Vazi, Keen Negotiator",
+  "n_rec": 258,
+  "list_tags": [
+   "newcards",
+   "topcards",
+   "highliftcards",
+   "creatures",
+   "instants",
+   "sorceries",
+   "utilityartifacts",
+   "enchantments",
+   "utilitylands",
+   "manaartifacts",
+   "lands"
+  ],
+  "cardview_keys": [
+   "id",
+   "image_version",
+   "lift",
+   "name",
+   "num_decks",
+   "potential_decks",
+   "sanitized",
+   "slug",
+   "synergy",
+   "trend_zscore",
+   "url"
+  ],
+  "lift_field_n": 259,
+  "lift_field_max_abs_err": 0.03798333572919077,
+  "lift_field_median_abs_err": 0.00027915784577370317,
+  "n_baseline_nonpositive": 0,
+  "min_inclusion_rec": 0.025806451612903226,
+  "n_decks": 609,
+  "n_pool": 18672,
+  "otag_only": {
+   "n_features_all": 488,
+   "n_features_supported": 162,
+   "n_pos": 139,
+   "top_features": [
+    {
+     "feature": "otag:group-hug",
+     "support": 7,
+     "p_x": 0.5405,
+     "p_b": 0.0188,
+     "lift": 3.3591,
+     "weight": 1.8157
+    },
+    {
+     "feature": "otag:donate-mana",
+     "support": 8,
+     "p_x": 0.5288,
+     "p_b": 0.0208,
+     "lift": 3.2378,
+     "weight": 1.712
+    },
+    {
+     "feature": "otag:death-trigger-opponent",
+     "support": 6,
+     "p_x": 0.4919,
+     "p_b": 0.017,
+     "lift": 3.3624,
+     "weight": 1.6541
+    },
+    {
+     "feature": "otag:gives-tap-ability",
+     "support": 3,
+     "p_x": 0.6498,
+     "p_b": 0.052,
+     "lift": 2.5252,
+     "weight": 1.6408
+    },
+    {
+     "feature": "otag:hate-set-mechanic",
+     "support": 3,
+     "p_x": 0.394,
+     "p_b": 0.0068,
+     "lift": 4.0531,
+     "weight": 1.5971
+    },
+    {
+     "feature": "otag:token-increaser",
+     "support": 4,
+     "p_x": 0.5814,
+     "p_b": 0.0614,
+     "lift": 2.2476,
+     "weight": 1.3066
+    },
+    {
+     "feature": "otag:free-sacrifice-outlet",
+     "support": 6,
+     "p_x": 0.4844,
+     "p_b": 0.0335,
+     "lift": 2.6726,
+     "weight": 1.2945
+    },
+    {
+     "feature": "otag:mana-spent-matters",
+     "support": 5,
+     "p_x": 0.4383,
+     "p_b": 0.0246,
+     "lift": 2.8796,
+     "weight": 1.2622
+    },
+    {
+     "feature": "otag:hate-artifact",
+     "support": 20,
+     "p_x": 0.348,
+     "p_b": 0.0103,
+     "lift": 3.5161,
+     "weight": 1.2236
+    },
+    {
+     "feature": "otag:donate-token",
+     "support": 12,
+     "p_x": 0.5074,
+     "p_b": 0.0492,
+     "lift": 2.333,
+     "weight": 1.1837
+    },
+    {
+     "feature": "otag:synergy-treasure",
+     "support": 23,
+     "p_x": 0.4309,
+     "p_b": 0.0328,
+     "lift": 2.5758,
+     "weight": 1.1098
+    },
+    {
+     "feature": "otag:repeatable-lifegain",
+     "support": 3,
+     "p_x": 0.303,
+     "p_b": 0.008,
+     "lift": 3.6309,
+     "weight": 1.1002
+    }
+   ],
+   "bottom_features": [
+    {
+     "feature": "otag:tutor-land-swamp",
+     "support": 3,
+     "p_x": 0.3257,
+     "p_b": 0.4016,
+     "lift": -0.2096,
+     "weight": -0.0683
+    },
+    {
+     "feature": "otag:lands-matter",
+     "support": 3,
+     "p_x": 0.3478,
+     "p_b": 0.4295,
+     "lift": -0.2109,
+     "weight": -0.0734
+    },
+    {
+     "feature": "otag:synergy-basic",
+     "support": 3,
+     "p_x": 0.3478,
+     "p_b": 0.4295,
+     "lift": -0.2109,
+     "weight": -0.0734
+    },
+    {
+     "feature": "otag:tutor-land-forest",
+     "support": 4,
+     "p_x": 0.2507,
+     "p_b": 0.3384,
+     "lift": -0.3,
+     "weight": -0.0752
+    },
+    {
+     "feature": "otag:fetchland",
+     "support": 4,
+     "p_x": 0.149,
+     "p_b": 0.2717,
+     "lift": -0.6011,
+     "weight": -0.0895
+    }
+   ],
+   "pos_mass": 63.94637033650723,
+   "pos_mass_support_le5": 0.45551018425516226,
+   "i_divergence": 37.40189303164705,
+   "n_scored_pos": 17227,
+   "top10": [
+    [
+     "Jolene, the Plunder Queen",
+     13.236,
+     0.8672,
+     true
+    ],
+    [
+     "Kibo, Uktabi Prince",
+     11.832,
+     0.0,
+     false
+    ],
+    [
+     "Rankle and Torbran",
+     11.729,
+     0.2332,
+     true
+    ],
+    [
+     "Pain Distributor",
+     11.375,
+     0.7481,
+     true
+    ],
+    [
+     "Evereth, Viceroy of Plunder",
+     10.175,
+     0.0,
+     false
+    ],
+    [
+     "Mastermind Plum",
+     9.406,
+     0.2286,
+     true
+    ],
+    [
+     "Rankle, Master of Pranks",
+     9.362,
+     0.0,
+     false
+    ],
+    [
+     "Party Dude",
+     8.419,
+     0.228,
+     true
+    ],
+    [
+     "Generous Plunderer",
+     8.397,
+     0.7405,
+     true
+    ],
+    [
+     "Smaug, Wicked Worm",
+     8.314,
+     0.5383,
+     true
+    ]
+   ],
+   "top10_raw": [
+    [
+     "Rankle and Torbran",
+     32.769
+    ],
+    [
+     "Kibo, Uktabi Prince",
+     31.991
+    ],
+    [
+     "Jolene, the Plunder Queen",
+     30.049
+    ],
+    [
+     "Evereth, Viceroy of Plunder",
+     29.552
+    ],
+    [
+     "Rankle, Master of Pranks",
+     29.137
+    ],
+    [
+     "Mastermind Plum",
+     27.337
+    ],
+    [
+     "Pain Distributor",
+     27.122
+    ],
+    [
+     "Jerren, Corrupted Bishop // Ormendahl, the Corrupter",
+     26.434
+    ],
+    [
+     "Ob Nixilis, the Adversary",
+     26.322
+    ],
+    [
+     "Grizzlegom, Hurloon Hero",
+     25.352
+    ]
+   ],
+   "top100_overlap_weighted_vs_raw": 68,
+   "top100_no_edhrec_data": 69,
+   "spearman_score_vs_nfeatures": 0.7631853025989812,
+   "mean_features_top100": 10.54,
+   "mean_features_pool": 3.4752825236998555,
+   "mean_score_rec": 2.301385985296813,
+   "mean_score_pool": 1.2152557117577083,
+   "spearman_score_vs_inclusion_rec": 0.20116409056678586,
+   "spearman_score_vs_synergy_rec": 0.7289010927078813,
+   "examples": {
+    "Biotech Specialist": {
+     "score": 3.32,
+     "rank": 1030,
+     "rank_raw": 1444,
+     "raw_score": 9.8739,
+     "of": 17227,
+     "edhrec": {
+      "inclusion": 0.23117960877296978,
+      "synergy": 0.21433026199481342
+     },
+     "breakdown": [
+      [
+       "otag:burn-player",
+       0.875
+      ],
+      [
+       "otag:pinger",
+       0.7738
+      ],
+      [
+       "otag:synergy-artifact",
+       0.6406
+      ],
+      [
+       "otag:your-sacrifice-matters",
+       0.5798
+      ],
+      [
+       "otag:triggered-ability",
+       0.4858
+      ],
+      [
+       "otag:tutor-land-basic",
+       -0.032
+      ],
+      [
+       "otag:tutor-land-to-battlefield",
+       -0.0165
+      ],
+      [
+       "otag:land-ramp",
+       0.0136
+      ]
+     ],
+     "otags": [
+      "burn-player",
+      "triggered-ability",
+      "synergy-artifact",
+      "your-sacrifice-matters",
+      "land-ramp",
+      "pinger",
+      "tutor-land-basic",
+      "tutor-land-to-battlefield",
+      "cycle-eoe-r-two-color"
+     ],
+     "type_line": "Creature \u2014 Insect Scientist"
+    },
+    "Gadrak, the Crown-Scourge": {
+     "score": 3.3127,
+     "rank": 1039,
+     "rank_raw": 995,
+     "raw_score": 10.9467,
+     "of": 17227,
+     "edhrec": null,
+     "breakdown": [
+      [
+       "otag:ramp",
+       0.7556
+      ],
+      [
+       "otag:repeatable-treasures",
+       0.7188
+      ],
+      [
+       "otag:artifact-count-matters",
+       0.6899
+      ],
+      [
+       "otag:evasion",
+       0.6626
+      ],
+      [
+       "otag:triggered-ability",
+       0.4858
+      ]
+     ],
+     "otags": [
+      "ramp",
+      "repeatable-treasures",
+      "restricted-attacker",
+      "triggered-ability",
+      "artifact-count-matters",
+      "unnoted-tracked-information",
+      "morbid",
+      "evasion"
+     ],
+     "type_line": "Legendary Creature \u2014 Dragon"
+    }
+   }
+  },
+  "with_types": {
+   "n_features_all": 556,
+   "n_features_supported": 187,
+   "n_pos": 162,
+   "top_features": [
+    {
+     "feature": "otag:group-hug",
+     "support": 7,
+     "p_x": 0.5405,
+     "p_b": 0.0188,
+     "lift": 3.3591,
+     "weight": 1.8157
+    },
+    {
+     "feature": "otag:donate-mana",
+     "support": 8,
+     "p_x": 0.5288,
+     "p_b": 0.0208,
+     "lift": 3.2378,
+     "weight": 1.712
+    },
+    {
+     "feature": "otag:death-trigger-opponent",
+     "support": 6,
+     "p_x": 0.4919,
+     "p_b": 0.017,
+     "lift": 3.3624,
+     "weight": 1.6541
+    },
+    {
+     "feature": "otag:gives-tap-ability",
+     "support": 3,
+     "p_x": 0.6498,
+     "p_b": 0.052,
+     "lift": 2.5252,
+     "weight": 1.6408
+    },
+    {
+     "feature": "otag:hate-set-mechanic",
+     "support": 3,
+     "p_x": 0.394,
+     "p_b": 0.0068,
+     "lift": 4.0531,
+     "weight": 1.5971
+    },
+    {
+     "feature": "otag:token-increaser",
+     "support": 4,
+     "p_x": 0.5814,
+     "p_b": 0.0614,
+     "lift": 2.2476,
+     "weight": 1.3066
+    },
+    {
+     "feature": "otag:free-sacrifice-outlet",
+     "support": 6,
+     "p_x": 0.4844,
+     "p_b": 0.0335,
+     "lift": 2.6726,
+     "weight": 1.2945
+    },
+    {
+     "feature": "otag:mana-spent-matters",
+     "support": 5,
+     "p_x": 0.4383,
+     "p_b": 0.0246,
+     "lift": 2.8796,
+     "weight": 1.2622
+    },
+    {
+     "feature": "otag:hate-artifact",
+     "support": 20,
+     "p_x": 0.348,
+     "p_b": 0.0103,
+     "lift": 3.5161,
+     "weight": 1.2236
+    },
+    {
+     "feature": "otag:donate-token",
+     "support": 12,
+     "p_x": 0.5074,
+     "p_b": 0.0492,
+     "lift": 2.333,
+     "weight": 1.1837
+    },
+    {
+     "feature": "otag:synergy-treasure",
+     "support": 23,
+     "p_x": 0.4309,
+     "p_b": 0.0328,
+     "lift": 2.5758,
+     "weight": 1.1098
+    },
+    {
+     "feature": "sub:Rogue",
+     "support": 4,
+     "p_x": 0.3534,
+     "p_b": 0.0156,
+     "lift": 3.1209,
+     "weight": 1.1029
+    }
+   ],
+   "bottom_features": [
+    {
+     "feature": "otag:tutor-land-swamp",
+     "support": 3,
+     "p_x": 0.3257,
+     "p_b": 0.4016,
+     "lift": -0.2096,
+     "weight": -0.0683
+    },
+    {
+     "feature": "otag:lands-matter",
+     "support": 3,
+     "p_x": 0.3478,
+     "p_b": 0.4295,
+     "lift": -0.2109,
+     "weight": -0.0734
+    },
+    {
+     "feature": "otag:synergy-basic",
+     "support": 3,
+     "p_x": 0.3478,
+     "p_b": 0.4295,
+     "lift": -0.2109,
+     "weight": -0.0734
+    },
+    {
+     "feature": "otag:tutor-land-forest",
+     "support": 4,
+     "p_x": 0.2507,
+     "p_b": 0.3384,
+     "lift": -0.3,
+     "weight": -0.0752
+    },
+    {
+     "feature": "otag:fetchland",
+     "support": 4,
+     "p_x": 0.149,
+     "p_b": 0.2717,
+     "lift": -0.6011,
+     "weight": -0.0895
+    }
+   ],
+   "pos_mass": 75.03162682757068,
+   "pos_mass_support_le5": 0.47636782758576357,
+   "i_divergence": 43.75172840919458,
+   "n_scored_pos": 18647,
+   "top10": [
+    [
+     "Jolene, the Plunder Queen",
+     15.831,
+     0.8672,
+     true
+    ],
+    [
+     "Rankle and Torbran",
+     13.18,
+     0.2332,
+     true
+    ],
+    [
+     "Pain Distributor",
+     12.821,
+     0.7481,
+     true
+    ],
+    [
+     "Kibo, Uktabi Prince",
+     12.485,
+     0.0,
+     false
+    ],
+    [
+     "Rankle, Master of Pranks",
+     11.118,
+     0.0,
+     false
+    ],
+    [
+     "Generous Plunderer",
+     11.071,
+     0.7405,
+     true
+    ],
+    [
+     "Mastermind Plum",
+     10.976,
+     0.2286,
+     true
+    ],
+    [
+     "Evereth, Viceroy of Plunder",
+     10.827,
+     0.0,
+     false
+    ],
+    [
+     "Smaug, Wicked Worm",
+     9.66,
+     0.5383,
+     true
+    ],
+    [
+     "Grizzlegom, Hurloon Hero",
+     9.155,
+     0.0,
+     false
+    ]
+   ],
+   "top10_raw": [
+    [
+     "Rankle and Torbran",
+     37.604
+    ],
+    [
+     "Jolene, the Plunder Queen",
+     36.673
+    ],
+    [
+     "Rankle, Master of Pranks",
+     34.117
+    ],
+    [
+     "Kibo, Uktabi Prince",
+     33.851
+    ],
+    [
+     "Mastermind Plum",
+     31.587
+    ],
+    [
+     "Generous Plunderer",
+     31.529
+    ],
+    [
+     "Evereth, Viceroy of Plunder",
+     31.412
+    ],
+    [
+     "Jerren, Corrupted Bishop // Ormendahl, the Corrupter",
+     30.683
+    ],
+    [
+     "Pain Distributor",
+     30.446
+    ],
+    [
+     "The Rise of Sozin // Fire Lord Sozin",
+     30.434
+    ]
+   ],
+   "top100_overlap_weighted_vs_raw": 76,
+   "top100_no_edhrec_data": 70,
+   "spearman_score_vs_nfeatures": 0.6672345151844278,
+   "mean_features_top100": 12.25,
+   "mean_features_pool": 4.898773499009159,
+   "mean_score_rec": 2.8335702077813045,
+   "mean_score_pool": 1.9405772003876216,
+   "spearman_score_vs_inclusion_rec": 0.20054172374645415,
+   "spearman_score_vs_synergy_rec": 0.7307610874744579,
+   "examples": {
+    "Biotech Specialist": {
+     "score": 3.9725,
+     "rank": 1663,
+     "rank_raw": 2105,
+     "raw_score": 11.7333,
+     "of": 18647,
+     "edhrec": {
+      "inclusion": 0.23117960877296978,
+      "synergy": 0.21433026199481342
+     },
+     "breakdown": [
+      [
+       "otag:burn-player",
+       0.875
+      ],
+      [
+       "otag:pinger",
+       0.7738
+      ],
+      [
+       "type:Creature",
+       0.6526
+      ],
+      [
+       "otag:synergy-artifact",
+       0.6406
+      ],
+      [
+       "otag:your-sacrifice-matters",
+       0.5798
+      ],
+      [
+       "otag:triggered-ability",
+       0.4858
+      ],
+      [
+       "otag:tutor-land-basic",
+       -0.032
+      ],
+      [
+       "otag:tutor-land-to-battlefield",
+       -0.0165
+      ]
+     ],
+     "otags": [
+      "burn-player",
+      "triggered-ability",
+      "synergy-artifact",
+      "your-sacrifice-matters",
+      "land-ramp",
+      "pinger",
+      "tutor-land-basic",
+      "tutor-land-to-battlefield",
+      "cycle-eoe-r-two-color"
+     ],
+     "type_line": "Creature \u2014 Insect Scientist"
+    },
+    "Gadrak, the Crown-Scourge": {
+     "score": 4.6588,
+     "rank": 860,
+     "rank_raw": 890,
+     "raw_score": 14.6053,
+     "of": 18647,
+     "edhrec": null,
+     "breakdown": [
+      [
+       "otag:ramp",
+       0.7556
+      ],
+      [
+       "otag:repeatable-treasures",
+       0.7188
+      ],
+      [
+       "sub:Dragon",
+       0.6935
+      ],
+      [
+       "otag:artifact-count-matters",
+       0.6899
+      ],
+      [
+       "otag:evasion",
+       0.6626
+      ],
+      [
+       "type:Creature",
+       0.6526
+      ],
+      [
+       "otag:triggered-ability",
+       0.4858
+      ]
+     ],
+     "otags": [
+      "ramp",
+      "repeatable-treasures",
+      "restricted-attacker",
+      "triggered-ability",
+      "artifact-count-matters",
+      "unnoted-tracked-information",
+      "morbid",
+      "evasion"
+     ],
+     "type_line": "Legendary Creature \u2014 Dragon"
+    }
+   }
+  }
+ },
+ "atraxa-praetors-voice": {
+  "name": "Atraxa, Praetors' Voice",
+  "n_rec": 288,
+  "list_tags": [
+   "newcards",
+   "topcards",
+   "creatures",
+   "instants",
+   "sorceries",
+   "utilityartifacts",
+   "enchantments",
+   "planeswalkers",
+   "utilitylands",
+   "manaartifacts",
+   "lands"
+  ],
+  "cardview_keys": [
+   "id",
+   "image_version",
+   "lift",
+   "name",
+   "num_decks",
+   "potential_decks",
+   "sanitized",
+   "slug",
+   "synergy",
+   "trend_zscore",
+   "url"
+  ],
+  "lift_field_n": 288,
+  "lift_field_max_abs_err": 4.440892098500626e-16,
+  "lift_field_median_abs_err": 0.0,
+  "n_baseline_nonpositive": 0,
+  "min_inclusion_rec": 0.03650550369235057,
+  "n_decks": 7019,
+  "n_pool": 25129,
+  "otag_only": {
+   "n_features_all": 543,
+   "n_features_supported": 173,
+   "n_pos": 129,
+   "top_features": [
+    {
+     "feature": "otag:synergy-proliferate",
+     "support": 4,
+     "p_x": 0.3924,
+     "p_b": 0.236,
+     "lift": 0.5084,
+     "weight": 0.1995
+    },
+    {
+     "feature": "otag:saboteur",
+     "support": 3,
+     "p_x": 0.3457,
+     "p_b": 0.2104,
+     "lift": 0.4965,
+     "weight": 0.1717
+    },
+    {
+     "feature": "otag:poison-opponents",
+     "support": 8,
+     "p_x": 0.3394,
+     "p_b": 0.2072,
+     "lift": 0.4936,
+     "weight": 0.1675
+    },
+    {
+     "feature": "otag:repeated-keyword",
+     "support": 3,
+     "p_x": 0.3184,
+     "p_b": 0.1894,
+     "lift": 0.5194,
+     "weight": 0.1654
+    },
+    {
+     "feature": "otag:charge-counters-matter",
+     "support": 3,
+     "p_x": 0.2951,
+     "p_b": 0.1733,
+     "lift": 0.5326,
+     "weight": 0.1572
+    },
+    {
+     "feature": "otag:repeatable-proliferate",
+     "support": 20,
+     "p_x": 0.307,
+     "p_b": 0.1848,
+     "lift": 0.5077,
+     "weight": 0.1559
+    },
+    {
+     "feature": "otag:eponymous",
+     "support": 4,
+     "p_x": 0.9066,
+     "p_b": 0.777,
+     "lift": 0.1542,
+     "weight": 0.1398
+    },
+    {
+     "feature": "otag:mix-and-match",
+     "support": 11,
+     "p_x": 0.2565,
+     "p_b": 0.1556,
+     "lift": 0.4997,
+     "weight": 0.1282
+    },
+    {
+     "feature": "otag:energy-increaser",
+     "support": 3,
+     "p_x": 0.2501,
+     "p_b": 0.155,
+     "lift": 0.4785,
+     "weight": 0.1197
+    },
+    {
+     "feature": "otag:phyrexian-mana-cost",
+     "support": 6,
+     "p_x": 0.2405,
+     "p_b": 0.1475,
+     "lift": 0.489,
+     "weight": 0.1176
+    },
+    {
+     "feature": "otag:cast-trigger-you",
+     "support": 8,
+     "p_x": 0.2439,
+     "p_b": 0.1519,
+     "lift": 0.474,
+     "weight": 0.1156
+    },
+    {
+     "feature": "otag:mana-sink",
+     "support": 7,
+     "p_x": 0.2329,
+     "p_b": 0.1451,
+     "lift": 0.4729,
+     "weight": 0.1101
+    }
+   ],
+   "bottom_features": [
+    {
+     "feature": "otag:painland",
+     "support": 3,
+     "p_x": 0.1536,
+     "p_b": 0.2764,
+     "lift": -0.5874,
+     "weight": -0.0902
+    },
+    {
+     "feature": "otag:tutor-to-battlefield",
+     "support": 6,
+     "p_x": 0.3413,
+     "p_b": 0.4492,
+     "lift": -0.2748,
+     "weight": -0.0938
+    },
+    {
+     "feature": "otag:cycle-nonmana-land",
+     "support": 6,
+     "p_x": 0.3413,
+     "p_b": 0.4492,
+     "lift": -0.2748,
+     "weight": -0.0938
+    },
+    {
+     "feature": "otag:cycle-fetchland",
+     "support": 6,
+     "p_x": 0.3413,
+     "p_b": 0.4492,
+     "lift": -0.2748,
+     "weight": -0.0938
+    },
+    {
+     "feature": "otag:cast-tax",
+     "support": 3,
+     "p_x": 0.1805,
+     "p_b": 0.3122,
+     "lift": -0.5476,
+     "weight": -0.0989
+    }
+   ],
+   "pos_mass": 7.468718318143011,
+   "pos_mass_support_le5": 0.46457310171685756,
+   "i_divergence": 1.7204047568960292,
+   "n_scored_pos": 22824,
+   "top10": [
+    [
+     "Ajani, Sleeper Agent",
+     0.947,
+     0.2198,
+     true
+    ],
+    [
+     "Vraska, Betrayal's Sting",
+     0.928,
+     0.5258,
+     true
+    ],
+    [
+     "Vronos, Masked Inquisitor",
+     0.807,
+     0.0,
+     false
+    ],
+    [
+     "K'rrik, Son of Yawgmoth",
+     0.796,
+     0.0,
+     false
+    ],
+    [
+     "Black Panther, Wakandan King",
+     0.763,
+     0.0,
+     false
+    ],
+    [
+     "Contagion Engine",
+     0.735,
+     0.2813,
+     true
+    ],
+    [
+     "Yawgmoth, Thran Physician",
+     0.711,
+     0.0,
+     false
+    ],
+    [
+     "Ixhel, Scion of Atraxa",
+     0.697,
+     0.2888,
+     true
+    ],
+    [
+     "Thrummingbird",
+     0.695,
+     0.5081,
+     true
+    ],
+    [
+     "Contaminant Grafter",
+     0.688,
+     0.2512,
+     true
+    ]
+   ],
+   "top10_raw": [
+    [
+     "Black Panther, Wakandan King",
+     5.181
+    ],
+    [
+     "Ajani, Sleeper Agent",
+     5.176
+    ],
+    [
+     "Vronos, Masked Inquisitor",
+     5.045
+    ],
+    [
+     "Ajani Unyielding",
+     4.784
+    ],
+    [
+     "Oko, Lorwyn Liege // Oko, Shadowmoor Scion",
+     4.698
+    ],
+    [
+     "The Theorist, Jace Beleren",
+     4.502
+    ],
+    [
+     "Ajani, Mentor of Heroes",
+     4.364
+    ],
+    [
+     "Nils, Discipline Enforcer",
+     4.267
+    ],
+    [
+     "Vraska, Betrayal's Sting",
+     4.239
+    ],
+    [
+     "Teferi, Who Slows the Sunset",
+     4.209
+    ]
+   ],
+   "top100_overlap_weighted_vs_raw": 56,
+   "top100_no_edhrec_data": 79,
+   "spearman_score_vs_nfeatures": 0.7327753835926457,
+   "mean_features_top100": 9.57,
+   "mean_features_pool": 3.255173511620503,
+   "mean_score_rec": 0.19748462787893079,
+   "mean_score_pool": 0.13893652369325069,
+   "spearman_score_vs_inclusion_rec": 0.03583359581718841,
+   "spearman_score_vs_synergy_rec": 0.6668906346726552
+  },
+  "with_types": {
+   "n_features_all": 612,
+   "n_features_supported": 201,
+   "n_pos": 153,
+   "top_features": [
+    {
+     "feature": "otag:synergy-proliferate",
+     "support": 4,
+     "p_x": 0.3924,
+     "p_b": 0.236,
+     "lift": 0.5084,
+     "weight": 0.1995
+    },
+    {
+     "feature": "otag:saboteur",
+     "support": 3,
+     "p_x": 0.3457,
+     "p_b": 0.2104,
+     "lift": 0.4965,
+     "weight": 0.1717
+    },
+    {
+     "feature": "sub:Horror",
+     "support": 5,
+     "p_x": 0.3352,
+     "p_b": 0.2012,
+     "lift": 0.5104,
+     "weight": 0.1711
+    },
+    {
+     "feature": "otag:poison-opponents",
+     "support": 8,
+     "p_x": 0.3394,
+     "p_b": 0.2072,
+     "lift": 0.4936,
+     "weight": 0.1675
+    },
+    {
+     "feature": "otag:repeated-keyword",
+     "support": 3,
+     "p_x": 0.3184,
+     "p_b": 0.1894,
+     "lift": 0.5194,
+     "weight": 0.1654
+    },
+    {
+     "feature": "otag:charge-counters-matter",
+     "support": 3,
+     "p_x": 0.2951,
+     "p_b": 0.1733,
+     "lift": 0.5326,
+     "weight": 0.1572
+    },
+    {
+     "feature": "otag:repeatable-proliferate",
+     "support": 20,
+     "p_x": 0.307,
+     "p_b": 0.1848,
+     "lift": 0.5077,
+     "weight": 0.1559
+    },
+    {
+     "feature": "otag:eponymous",
+     "support": 4,
+     "p_x": 0.9066,
+     "p_b": 0.777,
+     "lift": 0.1542,
+     "weight": 0.1398
+    },
+    {
+     "feature": "otag:mix-and-match",
+     "support": 11,
+     "p_x": 0.2565,
+     "p_b": 0.1556,
+     "lift": 0.4997,
+     "weight": 0.1282
+    },
+    {
+     "feature": "sub:Phyrexian",
+     "support": 33,
+     "p_x": 0.2466,
+     "p_b": 0.1504,
+     "lift": 0.4946,
+     "weight": 0.122
+    },
+    {
+     "feature": "otag:energy-increaser",
+     "support": 3,
+     "p_x": 0.2501,
+     "p_b": 0.155,
+     "lift": 0.4785,
+     "weight": 0.1197
+    },
+    {
+     "feature": "otag:phyrexian-mana-cost",
+     "support": 6,
+     "p_x": 0.2405,
+     "p_b": 0.1475,
+     "lift": 0.489,
+     "weight": 0.1176
+    }
+   ],
+   "bottom_features": [
+    {
+     "feature": "otag:painland",
+     "support": 3,
+     "p_x": 0.1536,
+     "p_b": 0.2764,
+     "lift": -0.5874,
+     "weight": -0.0902
+    },
+    {
+     "feature": "otag:tutor-to-battlefield",
+     "support": 6,
+     "p_x": 0.3413,
+     "p_b": 0.4492,
+     "lift": -0.2748,
+     "weight": -0.0938
+    },
+    {
+     "feature": "otag:cycle-nonmana-land",
+     "support": 6,
+     "p_x": 0.3413,
+     "p_b": 0.4492,
+     "lift": -0.2748,
+     "weight": -0.0938
+    },
+    {
+     "feature": "otag:cycle-fetchland",
+     "support": 6,
+     "p_x": 0.3413,
+     "p_b": 0.4492,
+     "lift": -0.2748,
+     "weight": -0.0938
+    },
+    {
+     "feature": "otag:cast-tax",
+     "support": 3,
+     "p_x": 0.1805,
+     "p_b": 0.3122,
+     "lift": -0.5476,
+     "weight": -0.0989
+    }
+   ],
+   "pos_mass": 9.099410834027303,
+   "pos_mass_support_le5": 0.4951566103811618,
+   "i_divergence": 2.017022684181549,
+   "n_scored_pos": 24767,
+   "top10": [
+    [
+     "K'rrik, Son of Yawgmoth",
+     1.172,
+     0.0,
+     false
+    ],
+    [
+     "Thrummingbird",
+     1.127,
+     0.5081,
+     true
+    ],
+    [
+     "Vraska, Betrayal's Sting",
+     1.09,
+     0.5258,
+     true
+    ],
+    [
+     "Ajani, Sleeper Agent",
+     1.06,
+     0.2198,
+     true
+    ],
+    [
+     "Phyrexian Swarmlord",
+     1.023,
+     0.1933,
+     true
+    ],
+    [
+     "Pith Driller",
+     1.019,
+     0.0,
+     false
+    ],
+    [
+     "Ixhel, Scion of Atraxa",
+     0.995,
+     0.2888,
+     true
+    ],
+    [
+     "Ezuri, Stalker of Spheres",
+     0.991,
+     0.5283,
+     true
+    ],
+    [
+     "Contaminant Grafter",
+     0.952,
+     0.2512,
+     true
+    ],
+    [
+     "Viridian Corrupter",
+     0.921,
+     0.1058,
+     true
+    ]
+   ],
+   "top10_raw": [
+    [
+     "Ajani, Sleeper Agent",
+     6.142
+    ],
+    [
+     "Ajani Unyielding",
+     5.75
+    ],
+    [
+     "Black Panther, Wakandan King",
+     5.72
+    ],
+    [
+     "Vronos, Masked Inquisitor",
+     5.492
+    ],
+    [
+     "The Theorist, Jace Beleren",
+     5.409
+    ],
+    [
+     "Ajani, Mentor of Heroes",
+     5.331
+    ],
+    [
+     "K'rrik, Son of Yawgmoth",
+     5.254
+    ],
+    [
+     "Vraska, Betrayal's Sting",
+     5.185
+    ],
+    [
+     "Oko, Lorwyn Liege // Oko, Shadowmoor Scion",
+     5.146
+    ],
+    [
+     "Phyrexian Swarmlord",
+     5.118
+    ]
+   ],
+   "top100_overlap_weighted_vs_raw": 54,
+   "top100_no_edhrec_data": 80,
+   "spearman_score_vs_nfeatures": 0.6853242605401294,
+   "mean_features_top100": 10.86,
+   "mean_features_pool": 4.699617956064947,
+   "mean_score_rec": 0.26628537158882193,
+   "mean_score_pool": 0.22606568336983052,
+   "spearman_score_vs_inclusion_rec": 0.038670894819588235,
+   "spearman_score_vs_synergy_rec": 0.668652725326629
+  }
+ },
+ "the-ur-dragon": {
+  "name": "The Ur-Dragon",
+  "n_rec": 243,
+  "list_tags": [
+   "newcards",
+   "topcards",
+   "highliftcards",
+   "creatures",
+   "instants",
+   "sorceries",
+   "utilityartifacts",
+   "enchantments",
+   "battles",
+   "planeswalkers",
+   "utilitylands",
+   "manaartifacts",
+   "lands"
+  ],
+  "cardview_keys": [
+   "id",
+   "image_version",
+   "lift",
+   "name",
+   "num_decks",
+   "potential_decks",
+   "sanitized",
+   "slug",
+   "synergy",
+   "trend_zscore",
+   "url"
+  ],
+  "lift_field_n": 243,
+  "lift_field_max_abs_err": 1.0658141036401503e-14,
+  "lift_field_median_abs_err": 2.220446049250313e-16,
+  "n_baseline_nonpositive": 0,
+  "min_inclusion_rec": 0.008820600369896145,
+  "n_decks": 7125,
+  "n_pool": 32576,
+  "otag_only": {
+   "n_features_all": 479,
+   "n_features_supported": 174,
+   "n_pos": 172,
+   "top_features": [
+    {
+     "feature": "otag:impact-effect",
+     "support": 3,
+     "p_x": 0.6281,
+     "p_b": 0.0633,
+     "lift": 2.2954,
+     "weight": 1.4418
+    },
+    {
+     "feature": "otag:virtual-french-vanilla",
+     "support": 3,
+     "p_x": 0.4679,
+     "p_b": 0.0395,
+     "lift": 2.4731,
+     "weight": 1.1571
+    },
+    {
+     "feature": "otag:dnd-character",
+     "support": 4,
+     "p_x": 0.5015,
+     "p_b": 0.0541,
+     "lift": 2.2262,
+     "weight": 1.1163
+    },
+    {
+     "feature": "otag:firebend-like",
+     "support": 3,
+     "p_x": 0.4296,
+     "p_b": 0.0426,
+     "lift": 2.3099,
+     "weight": 0.9923
+    },
+    {
+     "feature": "otag:firebreathing",
+     "support": 3,
+     "p_x": 0.4268,
+     "p_b": 0.0426,
+     "lift": 2.3048,
+     "weight": 0.9838
+    },
+    {
+     "feature": "otag:ward",
+     "support": 3,
+     "p_x": 0.4977,
+     "p_b": 0.0733,
+     "lift": 1.9149,
+     "weight": 0.9531
+    },
+    {
+     "feature": "otag:copy-legendary",
+     "support": 3,
+     "p_x": 0.4349,
+     "p_b": 0.0494,
+     "lift": 2.1761,
+     "weight": 0.9464
+    },
+    {
+     "feature": "otag:dnd-monster",
+     "support": 6,
+     "p_x": 0.4068,
+     "p_b": 0.0419,
+     "lift": 2.2734,
+     "weight": 0.9249
+    },
+    {
+     "feature": "otag:copy-creature",
+     "support": 4,
+     "p_x": 0.4049,
+     "p_b": 0.0441,
+     "lift": 2.2162,
+     "weight": 0.8974
+    },
+    {
+     "feature": "otag:cost-reducer-creature",
+     "support": 5,
+     "p_x": 0.4973,
+     "p_b": 0.0939,
+     "lift": 1.6665,
+     "weight": 0.8287
+    },
+    {
+     "feature": "otag:tutor-creature-dragon",
+     "support": 6,
+     "p_x": 0.3375,
+     "p_b": 0.032,
+     "lift": 2.3567,
+     "weight": 0.7953
+    },
+    {
+     "feature": "otag:cycle-clb-ancient-dragon",
+     "support": 5,
+     "p_x": 0.3532,
+     "p_b": 0.0389,
+     "lift": 2.2056,
+     "weight": 0.779
+    }
+   ],
+   "bottom_features": [
+    {
+     "feature": "otag:eponymous",
+     "support": 5,
+     "p_x": 0.7957,
+     "p_b": 0.7889,
+     "lift": 0.0086,
+     "weight": 0.0068
+    },
+    {
+     "feature": "otag:donate-token",
+     "support": 4,
+     "p_x": 0.1034,
+     "p_b": 0.0981,
+     "lift": 0.0531,
+     "weight": 0.0055
+    },
+    {
+     "feature": "otag:donate-rampant-growth",
+     "support": 3,
+     "p_x": 0.1865,
+     "p_b": 0.1852,
+     "lift": 0.0067,
+     "weight": 0.0012
+    },
+    {
+     "feature": "otag:chromatic-lantern",
+     "support": 5,
+     "p_x": 0.2112,
+     "p_b": 0.2146,
+     "lift": -0.016,
+     "weight": -0.0034
+    },
+    {
+     "feature": "otag:universal-type-change",
+     "support": 3,
+     "p_x": 0.0844,
+     "p_b": 0.0963,
+     "lift": -0.1319,
+     "weight": -0.0111
+    }
+   ],
+   "pos_mass": 56.746783045232235,
+   "pos_mass_support_le5": 0.581668250150303,
+   "i_divergence": 29.096086056306472,
+   "n_scored_pos": 30578,
+   "top10": [
+    [
+     "Ran and Shaw",
+     7.94,
+     0.0,
+     false
+    ],
+    [
+     "Raphael, Fiendish Savior",
+     7.796,
+     0.0,
+     false
+    ],
+    [
+     "Scourge of Valkas",
+     7.732,
+     0.5075,
+     true
+    ],
+    [
+     "The Rise of Sozin // Fire Lord Sozin",
+     7.227,
+     0.0,
+     false
+    ],
+    [
+     "Dragon Tempest",
+     7.026,
+     0.776,
+     true
+    ],
+    [
+     "Miirym, Sentinel Wyrm",
+     7.015,
+     0.7876,
+     true
+    ],
+    [
+     "Firkraag, Cunning Instigator",
+     6.603,
+     0.0,
+     false
+    ],
+    [
+     "Mila, Crafty Companion // Lukka, Wayward Bonder",
+     6.514,
+     0.0,
+     false
+    ],
+    [
+     "Avatar Aang // Aang, Master of Elements",
+     6.473,
+     0.0,
+     false
+    ],
+    [
+     "Tiamat",
+     6.397,
+     0.675,
+     true
+    ]
+   ],
+   "top10_raw": [
+    [
+     "The Rise of Sozin // Fire Lord Sozin",
+     29.336
+    ],
+    [
+     "Ran and Shaw",
+     26.519
+    ],
+    [
+     "Raphael, Fiendish Savior",
+     26.031
+    ],
+    [
+     "Firkraag, Cunning Instigator",
+     24.839
+    ],
+    [
+     "Avatar Aang // Aang, Master of Elements",
+     24.57
+    ],
+    [
+     "Narset of the Ancient Way",
+     23.947
+    ],
+    [
+     "Chandra, Flameshaper",
+     23.85
+    ],
+    [
+     "Scourge of Valkas",
+     23.125
+    ],
+    [
+     "Megatron, Tyrant // Megatron, Destructive Force",
+     23.103
+    ],
+    [
+     "Invasion of Tarkir // Defiant Thundermaw",
+     22.995
+    ]
+   ],
+   "top100_overlap_weighted_vs_raw": 64,
+   "top100_no_edhrec_data": 78,
+   "spearman_score_vs_nfeatures": 0.8183795777498313,
+   "mean_features_top100": 10.91,
+   "mean_features_pool": 3.317851112816577,
+   "mean_score_rec": 1.9747265982241327,
+   "mean_score_pool": 1.0902631946743861,
+   "spearman_score_vs_inclusion_rec": 0.13136024783339428,
+   "spearman_score_vs_synergy_rec": 0.6517036947866899
+  },
+  "with_types": {
+   "n_features_all": 526,
+   "n_features_supported": 192,
+   "n_pos": 190,
+   "top_features": [
+    {
+     "feature": "otag:impact-effect",
+     "support": 3,
+     "p_x": 0.6281,
+     "p_b": 0.0633,
+     "lift": 2.2954,
+     "weight": 1.4418
+    },
+    {
+     "feature": "otag:virtual-french-vanilla",
+     "support": 3,
+     "p_x": 0.4679,
+     "p_b": 0.0395,
+     "lift": 2.4731,
+     "weight": 1.1571
+    },
+    {
+     "feature": "otag:dnd-character",
+     "support": 4,
+     "p_x": 0.5015,
+     "p_b": 0.0541,
+     "lift": 2.2262,
+     "weight": 1.1163
+    },
+    {
+     "feature": "sub:Spirit",
+     "support": 3,
+     "p_x": 0.4811,
+     "p_b": 0.0512,
+     "lift": 2.2404,
+     "weight": 1.0779
+    },
+    {
+     "feature": "otag:firebend-like",
+     "support": 3,
+     "p_x": 0.4296,
+     "p_b": 0.0426,
+     "lift": 2.3099,
+     "weight": 0.9923
+    },
+    {
+     "feature": "sub:Shaman",
+     "support": 4,
+     "p_x": 0.433,
+     "p_b": 0.0441,
+     "lift": 2.2847,
+     "weight": 0.9893
+    },
+    {
+     "feature": "otag:firebreathing",
+     "support": 3,
+     "p_x": 0.4268,
+     "p_b": 0.0426,
+     "lift": 2.3048,
+     "weight": 0.9838
+    },
+    {
+     "feature": "otag:ward",
+     "support": 3,
+     "p_x": 0.4977,
+     "p_b": 0.0733,
+     "lift": 1.9149,
+     "weight": 0.9531
+    },
+    {
+     "feature": "otag:copy-legendary",
+     "support": 3,
+     "p_x": 0.4349,
+     "p_b": 0.0494,
+     "lift": 2.1761,
+     "weight": 0.9464
+    },
+    {
+     "feature": "otag:dnd-monster",
+     "support": 6,
+     "p_x": 0.4068,
+     "p_b": 0.0419,
+     "lift": 2.2734,
+     "weight": 0.9249
+    },
+    {
+     "feature": "otag:copy-creature",
+     "support": 4,
+     "p_x": 0.4049,
+     "p_b": 0.0441,
+     "lift": 2.2162,
+     "weight": 0.8974
+    },
+    {
+     "feature": "otag:cost-reducer-creature",
+     "support": 5,
+     "p_x": 0.4973,
+     "p_b": 0.0939,
+     "lift": 1.6665,
+     "weight": 0.8287
+    }
+   ],
+   "bottom_features": [
+    {
+     "feature": "otag:eponymous",
+     "support": 5,
+     "p_x": 0.7957,
+     "p_b": 0.7889,
+     "lift": 0.0086,
+     "weight": 0.0068
+    },
+    {
+     "feature": "otag:donate-token",
+     "support": 4,
+     "p_x": 0.1034,
+     "p_b": 0.0981,
+     "lift": 0.0531,
+     "weight": 0.0055
+    },
+    {
+     "feature": "otag:donate-rampant-growth",
+     "support": 3,
+     "p_x": 0.1865,
+     "p_b": 0.1852,
+     "lift": 0.0067,
+     "weight": 0.0012
+    },
+    {
+     "feature": "otag:chromatic-lantern",
+     "support": 5,
+     "p_x": 0.2112,
+     "p_b": 0.2146,
+     "lift": -0.016,
+     "weight": -0.0034
+    },
+    {
+     "feature": "otag:universal-type-change",
+     "support": 3,
+     "p_x": 0.0844,
+     "p_b": 0.0963,
+     "lift": -0.1319,
+     "weight": -0.0111
+    }
+   ],
+   "pos_mass": 63.34329647904852,
+   "pos_mass_support_le5": 0.5746845406523065,
+   "i_divergence": 32.553170716195666,
+   "n_scored_pos": 32575,
+   "top10": [
+    [
+     "Miirym, Sentinel Wyrm",
+     9.408,
+     0.7876,
+     true
+    ],
+    [
+     "Ran and Shaw",
+     9.255,
+     0.0,
+     false
+    ],
+    [
+     "Scourge of Valkas",
+     9.047,
+     0.5075,
+     true
+    ],
+    [
+     "The Rise of Sozin // Fire Lord Sozin",
+     8.879,
+     0.0,
+     false
+    ],
+    [
+     "Raphael, Fiendish Savior",
+     8.426,
+     0.0,
+     false
+    ],
+    [
+     "Sarkhan, Soul Aflame",
+     8.363,
+     0.5051,
+     true
+    ],
+    [
+     "Lozhan, Dragons' Legacy",
+     8.097,
+     0.134,
+     true
+    ],
+    [
+     "Firkraag, Cunning Instigator",
+     7.918,
+     0.0,
+     false
+    ],
+    [
+     "Avatar Aang // Aang, Master of Elements",
+     7.846,
+     0.0,
+     false
+    ],
+    [
+     "Tiamat",
+     7.713,
+     0.675,
+     true
+    ]
+   ],
+   "top10_raw": [
+    [
+     "The Rise of Sozin // Fire Lord Sozin",
+     34.672
+    ],
+    [
+     "Ran and Shaw",
+     30.776
+    ],
+    [
+     "Firkraag, Cunning Instigator",
+     29.095
+    ],
+    [
+     "Lozhan, Dragons' Legacy",
+     28.96
+    ],
+    [
+     "Avatar Aang // Aang, Master of Elements",
+     28.621
+    ],
+    [
+     "Raphael, Fiendish Savior",
+     28.033
+    ],
+    [
+     "Scourge of Valkas",
+     27.382
+    ],
+    [
+     "Invasion of Tarkir // Defiant Thundermaw",
+     27.251
+    ],
+    [
+     "Mila, Crafty Companion // Lukka, Wayward Bonder",
+     26.94
+    ],
+    [
+     "Narset of the Ancient Way",
+     26.1
+    ]
+   ],
+   "top100_overlap_weighted_vs_raw": 71,
+   "top100_no_edhrec_data": 77,
+   "spearman_score_vs_nfeatures": 0.6999149028510593,
+   "mean_features_top100": 12.61,
+   "mean_features_pool": 4.583514965464313,
+   "mean_score_rec": 2.500244078578362,
+   "mean_score_pool": 1.6740911477970384,
+   "spearman_score_vs_inclusion_rec": 0.1518133929626455,
+   "spearman_score_vs_synergy_rec": 0.676278438641246
+  }
+ },
+ "krenko-mob-boss": {
+  "name": "Krenko, Mob Boss",
+  "n_rec": 220,
+  "list_tags": [
+   "newcards",
+   "topcards",
+   "highliftcards",
+   "creatures",
+   "instants",
+   "sorceries",
+   "utilityartifacts",
+   "enchantments",
+   "utilitylands",
+   "manaartifacts",
+   "lands"
+  ],
+  "cardview_keys": [
+   "id",
+   "image_version",
+   "lift",
+   "name",
+   "num_decks",
+   "potential_decks",
+   "sanitized",
+   "slug",
+   "synergy",
+   "trend_zscore",
+   "url"
+  ],
+  "lift_field_n": 221,
+  "lift_field_max_abs_err": 4.440892098500626e-15,
+  "lift_field_median_abs_err": 2.220446049250313e-16,
+  "n_baseline_nonpositive": 0,
+  "min_inclusion_rec": 0.012991452991452991,
+  "n_decks": 5925,
+  "n_pool": 7612,
+  "otag_only": {
+   "n_features_all": 417,
+   "n_features_supported": 135,
+   "n_pos": 115,
+   "top_features": [
+    {
+     "feature": "otag:type-errata",
+     "support": 3,
+     "p_x": 0.5917,
+     "p_b": 0.0972,
+     "lift": 1.8065,
+     "weight": 1.069
+    },
+    {
+     "feature": "otag:tutor-creature-goblin",
+     "support": 3,
+     "p_x": 0.5377,
+     "p_b": 0.0934,
+     "lift": 1.7503,
+     "weight": 0.9411
+    },
+    {
+     "feature": "otag:free-sacrifice-outlet",
+     "support": 6,
+     "p_x": 0.5246,
+     "p_b": 0.0996,
+     "lift": 1.6616,
+     "weight": 0.8717
+    },
+    {
+     "feature": "otag:typal-goblin",
+     "support": 36,
+     "p_x": 0.4534,
+     "p_b": 0.0759,
+     "lift": 1.7873,
+     "weight": 0.8104
+    },
+    {
+     "feature": "otag:burn-with-set-s-mechanic",
+     "support": 3,
+     "p_x": 0.4439,
+     "p_b": 0.0794,
+     "lift": 1.7213,
+     "weight": 0.7642
+    },
+    {
+     "feature": "otag:noncreature-typal",
+     "support": 32,
+     "p_x": 0.4263,
+     "p_b": 0.072,
+     "lift": 1.7778,
+     "weight": 0.7578
+    },
+    {
+     "feature": "otag:virtual-vanilla",
+     "support": 7,
+     "p_x": 0.4332,
+     "p_b": 0.0787,
+     "lift": 1.7059,
+     "weight": 0.7389
+    },
+    {
+     "feature": "otag:enters-in-company",
+     "support": 5,
+     "p_x": 0.4636,
+     "p_b": 0.0955,
+     "lift": 1.58,
+     "weight": 0.7324
+    },
+    {
+     "feature": "otag:death-trigger",
+     "support": 6,
+     "p_x": 0.4258,
+     "p_b": 0.079,
+     "lift": 1.6841,
+     "weight": 0.7171
+    },
+    {
+     "feature": "otag:mana-dork",
+     "support": 3,
+     "p_x": 0.4762,
+     "p_b": 0.1081,
+     "lift": 1.4828,
+     "weight": 0.7061
+    },
+    {
+     "feature": "otag:impulse-creature",
+     "support": 3,
+     "p_x": 0.361,
+     "p_b": 0.0527,
+     "lift": 1.9242,
+     "weight": 0.6947
+    },
+    {
+     "feature": "otag:martyr",
+     "support": 9,
+     "p_x": 0.3931,
+     "p_b": 0.0704,
+     "lift": 1.7199,
+     "weight": 0.6761
+    }
+   ],
+   "bottom_features": [
+    {
+     "feature": "otag:copy-instant",
+     "support": 3,
+     "p_x": 0.0719,
+     "p_b": 0.1433,
+     "lift": -0.6893,
+     "weight": -0.0496
+    },
+    {
+     "feature": "otag:copy-sorcery",
+     "support": 3,
+     "p_x": 0.0719,
+     "p_b": 0.1433,
+     "lift": -0.6893,
+     "weight": -0.0496
+    },
+    {
+     "feature": "otag:shares-name-with-a-set",
+     "support": 3,
+     "p_x": 0.0608,
+     "p_b": 0.1847,
+     "lift": -1.1101,
+     "weight": -0.0675
+    },
+    {
+     "feature": "otag:tormenting-voice",
+     "support": 4,
+     "p_x": 0.1308,
+     "p_b": 0.2418,
+     "lift": -0.6143,
+     "weight": -0.0803
+    },
+    {
+     "feature": "otag:change-target",
+     "support": 4,
+     "p_x": 0.1346,
+     "p_b": 0.2456,
+     "lift": -0.6013,
+     "weight": -0.081
+    }
+   ],
+   "pos_mass": 32.907243203054435,
+   "pos_mass_support_le5": 0.4477200972887175,
+   "i_divergence": 15.220429249021842,
+   "n_scored_pos": 7128,
+   "top10": [
+    [
+     "Siege-Gang Commander",
+     8.486,
+     0.6444,
+     true
+    ],
+    [
+     "Tar Pitcher",
+     7.385,
+     0.0,
+     false
+    ],
+    [
+     "Siege-Gang Lieutenant",
+     7.232,
+     0.2662,
+     true
+    ],
+    [
+     "Pashalik Mons",
+     7.008,
+     0.6738,
+     true
+    ],
+    [
+     "Arms Dealer",
+     6.968,
+     0.0,
+     false
+    ],
+    [
+     "Spawn-Gang Commander",
+     6.713,
+     0.0,
+     false
+    ],
+    [
+     "Goblin Trashmaster",
+     6.611,
+     0.6136,
+     true
+    ],
+    [
+     "Goblin Soothsayer",
+     5.815,
+     0.0,
+     false
+    ],
+    [
+     "Goblin Chirurgeon",
+     5.648,
+     0.5598,
+     true
+    ],
+    [
+     "Battle Cry Goblin",
+     5.424,
+     0.3728,
+     true
+    ]
+   ],
+   "top10_raw": [
+    [
+     "Siege-Gang Commander",
+     22.999
+    ],
+    [
+     "Siege-Gang Lieutenant",
+     20.644
+    ],
+    [
+     "Tar Pitcher",
+     20.094
+    ],
+    [
+     "Pashalik Mons",
+     19.836
+    ],
+    [
+     "Spawn-Gang Commander",
+     18.897
+    ],
+    [
+     "Goblin Trashmaster",
+     18.468
+    ],
+    [
+     "Arms Dealer",
+     18.21
+    ],
+    [
+     "Battle Cry Goblin",
+     16.679
+    ],
+    [
+     "Blasting Station",
+     16.13
+    ],
+    [
+     "Blood Aspirant",
+     15.981
+    ]
+   ],
+   "top100_overlap_weighted_vs_raw": 82,
+   "top100_no_edhrec_data": 76,
+   "spearman_score_vs_nfeatures": 0.7537045763653764,
+   "mean_features_top100": 9.75,
+   "mean_features_pool": 3.6443305741689658,
+   "mean_score_rec": 1.4807260364997705,
+   "mean_score_pool": 0.9309944099844029,
+   "spearman_score_vs_inclusion_rec": 0.3788352728326259,
+   "spearman_score_vs_synergy_rec": 0.666364816931188
+  },
+  "with_types": {
+   "n_features_all": 447,
+   "n_features_supported": 148,
+   "n_pos": 128,
+   "top_features": [
+    {
+     "feature": "otag:type-errata",
+     "support": 3,
+     "p_x": 0.5917,
+     "p_b": 0.0972,
+     "lift": 1.8065,
+     "weight": 1.069
+    },
+    {
+     "feature": "otag:tutor-creature-goblin",
+     "support": 3,
+     "p_x": 0.5377,
+     "p_b": 0.0934,
+     "lift": 1.7503,
+     "weight": 0.9411
+    },
+    {
+     "feature": "otag:free-sacrifice-outlet",
+     "support": 6,
+     "p_x": 0.5246,
+     "p_b": 0.0996,
+     "lift": 1.6616,
+     "weight": 0.8717
+    },
+    {
+     "feature": "otag:typal-goblin",
+     "support": 36,
+     "p_x": 0.4534,
+     "p_b": 0.0759,
+     "lift": 1.7873,
+     "weight": 0.8104
+    },
+    {
+     "feature": "otag:burn-with-set-s-mechanic",
+     "support": 3,
+     "p_x": 0.4439,
+     "p_b": 0.0794,
+     "lift": 1.7213,
+     "weight": 0.7642
+    },
+    {
+     "feature": "otag:noncreature-typal",
+     "support": 32,
+     "p_x": 0.4263,
+     "p_b": 0.072,
+     "lift": 1.7778,
+     "weight": 0.7578
+    },
+    {
+     "feature": "otag:virtual-vanilla",
+     "support": 7,
+     "p_x": 0.4332,
+     "p_b": 0.0787,
+     "lift": 1.7059,
+     "weight": 0.7389
+    },
+    {
+     "feature": "otag:enters-in-company",
+     "support": 5,
+     "p_x": 0.4636,
+     "p_b": 0.0955,
+     "lift": 1.58,
+     "weight": 0.7324
+    },
+    {
+     "feature": "sub:Rogue",
+     "support": 5,
+     "p_x": 0.4613,
+     "p_b": 0.097,
+     "lift": 1.5596,
+     "weight": 0.7195
+    },
+    {
+     "feature": "otag:death-trigger",
+     "support": 6,
+     "p_x": 0.4258,
+     "p_b": 0.079,
+     "lift": 1.6841,
+     "weight": 0.7171
+    },
+    {
+     "feature": "otag:mana-dork",
+     "support": 3,
+     "p_x": 0.4762,
+     "p_b": 0.1081,
+     "lift": 1.4828,
+     "weight": 0.7061
+    },
+    {
+     "feature": "otag:impulse-creature",
+     "support": 3,
+     "p_x": 0.361,
+     "p_b": 0.0527,
+     "lift": 1.9242,
+     "weight": 0.6947
+    }
+   ],
+   "bottom_features": [
+    {
+     "feature": "otag:copy-instant",
+     "support": 3,
+     "p_x": 0.0719,
+     "p_b": 0.1433,
+     "lift": -0.6893,
+     "weight": -0.0496
+    },
+    {
+     "feature": "otag:copy-sorcery",
+     "support": 3,
+     "p_x": 0.0719,
+     "p_b": 0.1433,
+     "lift": -0.6893,
+     "weight": -0.0496
+    },
+    {
+     "feature": "otag:shares-name-with-a-set",
+     "support": 3,
+     "p_x": 0.0608,
+     "p_b": 0.1847,
+     "lift": -1.1101,
+     "weight": -0.0675
+    },
+    {
+     "feature": "otag:tormenting-voice",
+     "support": 4,
+     "p_x": 0.1308,
+     "p_b": 0.2418,
+     "lift": -0.6143,
+     "weight": -0.0803
+    },
+    {
+     "feature": "otag:change-target",
+     "support": 4,
+     "p_x": 0.1346,
+     "p_b": 0.2456,
+     "lift": -0.6013,
+     "weight": -0.081
+    }
+   ],
+   "pos_mass": 37.49219179198752,
+   "pos_mass_support_le5": 0.4513145162663342,
+   "i_divergence": 17.391504296602943,
+   "n_scored_pos": 7583,
+   "top10": [
+    [
+     "Siege-Gang Commander",
+     9.649,
+     0.6444,
+     true
+    ],
+    [
+     "Tar Pitcher",
+     9.005,
+     0.0,
+     false
+    ],
+    [
+     "Arms Dealer",
+     8.851,
+     0.0,
+     false
+    ],
+    [
+     "Pashalik Mons",
+     8.696,
+     0.6738,
+     true
+    ],
+    [
+     "Siege-Gang Lieutenant",
+     8.395,
+     0.2662,
+     true
+    ],
+    [
+     "Goblin Trashmaster",
+     8.299,
+     0.6136,
+     true
+    ],
+    [
+     "Spawn-Gang Commander",
+     7.876,
+     0.0,
+     false
+    ],
+    [
+     "Goblin Soothsayer",
+     7.436,
+     0.0,
+     false
+    ],
+    [
+     "Goblin Chirurgeon",
+     7.268,
+     0.5598,
+     true
+    ],
+    [
+     "Battle Cry Goblin",
+     6.587,
+     0.3728,
+     true
+    ]
+   ],
+   "top10_raw": [
+    [
+     "Siege-Gang Commander",
+     26.216
+    ],
+    [
+     "Tar Pitcher",
+     24.844
+    ],
+    [
+     "Pashalik Mons",
+     24.71
+    ],
+    [
+     "Siege-Gang Lieutenant",
+     23.86
+    ],
+    [
+     "Goblin Trashmaster",
+     23.342
+    ],
+    [
+     "Arms Dealer",
+     22.987
+    ],
+    [
+     "Spawn-Gang Commander",
+     22.114
+    ],
+    [
+     "Goblin Soothsayer",
+     20.138
+    ],
+    [
+     "Battle Cry Goblin",
+     19.896
+    ],
+    [
+     "Blood Aspirant",
+     19.473
+    ]
+   ],
+   "top100_overlap_weighted_vs_raw": 82,
+   "top100_no_edhrec_data": 74,
+   "spearman_score_vs_nfeatures": 0.6308982753133687,
+   "mean_features_top100": 11.48,
+   "mean_features_pool": 4.974116410458547,
+   "mean_score_rec": 1.972883837049221,
+   "mean_score_pool": 1.35810669345184,
+   "spearman_score_vs_inclusion_rec": 0.4246762186072458,
+   "spearman_score_vs_synergy_rec": 0.7258032160422768
+  }
+ }
+}
