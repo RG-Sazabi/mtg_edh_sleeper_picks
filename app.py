@@ -81,7 +81,7 @@ def index():
 @app.route("/commanders.json")
 def commanders_json():
     # Commander-name list for the search-bar autocomplete. First hit on a cold
-    # server warms the bulk store (~30s); the page renders without waiting on it.
+    # server warms the bulk store (seconds); the page renders without waiting on it.
     scryfall.warm_up()
     return jsonify(bulk.commander_names())
 
@@ -427,7 +427,8 @@ if __name__ == "__main__":
         "off",
     )
     # Warm the bulk store on startup so the first autocomplete keystroke doesn't
-    # pay the ~540MB download/parse cost. Run it in a daemon thread so the server
+    # pay the bulk load (first run: ~87MB gzip download, then a few seconds of
+    # parsing on every start). Run it in a daemon thread so the server
     # still binds immediately (and code-reload stays snappy); ensure_loaded() is
     # thread-safe, so an early request that races the warm-up just waits on it.
     # With the reloader on (debug), only the request-serving child sets
