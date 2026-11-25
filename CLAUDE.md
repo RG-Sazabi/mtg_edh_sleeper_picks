@@ -39,6 +39,10 @@ python app.py
 # Lint / Format
 flake8 .                  # Check for errors
 black .                   # Auto-format
+
+# Tests (offline, ~3 s) and the live canary (real EDHRec/Archidekt/Scryfall)
+python -m pytest
+python -m pytest -m live
 ```
 
 ---
@@ -48,7 +52,7 @@ black .                   # Auto-format
 After writing or modifying ANY code, always run:
 
 ```bash
-flake8 . && python -m py_compile <changed_file>.py
+flake8 . && python -m py_compile <changed_file>.py && python -m pytest
 ```
 
 Read every error. Fix every error. Re-run until the output is clean.
@@ -72,6 +76,7 @@ mtg_edh_sleeper_picks/
 ├── static/
 │   ├── css/style.css
 │   └── js/filters.js       # Client-side price/rarity filter logic
+├── tests/                  # pytest suite; recorded fixtures in tests/fixtures/
 ├── requirements.txt
 └── memory/                 # Persistent agent memory (do not delete)
 ```
@@ -141,10 +146,12 @@ mtg_edh_sleeper_picks/
 - Log errors with `app.logger.error(...)` — no bare `print()` in production paths.
 
 ### Scryfall Bulk Data (local store)
-- Card attributes, oracle tags, and the color-identity pool are served from a **local bulk store** (`services/bulk.py`), not per-request HTTP. On first use it downloads Scryfall's `default_cards` (~547 MB) and `oracle_tags` (~18 MB) bulk files to `cache/` and builds in-memory indices (stream-parsed with `ijson` to bound memory). Files refresh when older than 24h via **stale-while-revalidate**: a stale-but-present file is parsed and served immediately while a background thread re-downloads and rebuilds the indices, so the daily ~550 MB download never blocks the first request of the day (only a truly missing file — first run — downloads synchronously).
+- Card attributes, oracle tags, and the color-identity pool are served from a **local bulk store** (`services/bulk.py`), not per-request HTTP. On first use it reads Scryfall's `/bulk-data` listing and downloads the **gzip JSON-Lines** files from each entry's `jsonl_download_uri` (Scryfall no longer publishes `download_uri` / plain `.json`): `default_cards` (~81 MB compressed) and `oracle_tags` (~6 MB) to `cache/default-cards.jsonl.gz` / `cache/oracle-tags.jsonl.gz`, kept compressed. Scryfall's `updated_at` per file is recorded in `cache/bulk-meta.json`; legacy `.json` files are deleted after a successful replacement. Parsing is stdlib `gzip` + `json.loads` line by line (no `ijson`): fresh install ~12 s (incl. download), warm start ~8 s, peak process memory ~95 MB.
+- Files refresh when older than 24h via **stale-while-revalidate**: a stale-but-present file is parsed and served immediately while a background thread re-downloads and rebuilds. All indices live on one `_Store` object built in locals and published with a single reference swap, so readers never see a half-built index; derived memos (commander names, partner pools, tag ancestors) live on the store. A build with too few cards/tags or a corrupt file is never published. If the first load fails the store stays unloaded with status `error` (retried at most every 5 min); a failed background refresh keeps the old data and sets `last_refresh_failed`. `bulk.snapshot_info()` (pure, never loads) drives the "Card data as of YYYY-MM-DD" footer in `base.html`, which turns into a warning when loading failed, the refresh failed, or the snapshot is >3 days old.
+- `commander_legal` on a record means "can go in a Commander deck": Scryfall legality minus meld results and sticker sheets. `color_identity_pool` also drops basic lands (they still resolve via `card_record`). `price_usd` is the cheapest non-foil paper printing (excluding digital/memorabilia/gold-border/oversized) and `ever_common` is True when any such printing is common; `rarity` stays the displayed printing's.
 - We use `default_cards` (every paper printing) rather than `oracle_cards` (one printing per card) so each card renders its **cleanest standard printing**. `oracle_cards`' "most recent recognizable" pick is a borderless/full-art/Un-set/art-series version for ~12% of cards (often missing the normal frame or rules text). `bulk._printing_penalty` ranks printings; we keep the lowest-penalty one per oracle id, tie-broken toward high-res + newest. Do not switch back to `oracle_cards`.
 - `cache/` is downloaded **reference data** (the full Scryfall catalog), intentionally persisted to disk and gitignored. This is distinct from per-request response caching — the earlier "no disk cache" guidance does not apply to the bulk store.
-- After warm-up, a commander lookup makes **only** EDHRec calls plus pure local computation. The thin live `/cards/named` fallback in `services/scryfall.py` (0.15s sleep, 429 backoff) only fires for a name absent from the bulk snapshot.
+- After warm-up, a commander lookup makes **only** EDHRec calls plus pure local computation. The thin live `/cards/named` fallback in `services/scryfall.py` (0.15s sleep, 429 backoff) only fires for a name absent from the bulk snapshot; misses are negative-cached for 30 min, one request spends at most ~10 s in fallback lookups, and giving up on a 429 pauses the fallback for 60 s.
 
 ---
 
@@ -179,14 +186,32 @@ much as a core theme — which made cards stacking many fringe tags (planeswalke
 multi-subtype legends) run away with inflated, nonsensical scores. The weight makes
 a feature matter only if the commander both over-uses it *and* actually plays it
 often. `buzzword_score` (field name kept for template/JS compatibility) holds the
-summed weighted lift; typical top scores are ~0.5–1.0, not 5–7.
+summed weighted lift. Scores are **not comparable across commanders**: the scale
+tracks how far the commander's decks diverge from its color identity (top score
+~0.8–1.0 for Atraxa, ~5–8 for typal or tightly themed commanders such as
+The Ur-Dragon or Krenko).
 
 ---
 
 ## Testing
 
-- No formal test suite required for this personal project.
-- Manual smoke test: run `python app.py`, search for "Atraxa, Praetors' Voice", verify both sections render with data.
+- `python -m pytest` runs the offline suite in `tests/` (no network, never touches
+  `cache/`). It blocks real HTTP, serves recorded EDHRec / Archidekt / Scryfall
+  responses from `tests/fixtures/`, and points the bulk store at a ~3.4k-card
+  gzip JSON-Lines sample in `tests/fixtures/bulk/` (with the store's size floors
+  lowered for the sample). It locks in the EDHRec parsing contract and
+  `contract_problems`, slugs, Archidekt's first-category rule, the bulk loader
+  (JSONL download URI, refusing empty/truncated builds, pool exclusions, prices),
+  scoring (incl. a golden Atraxa Top 10) and Flask smoke tests.
+- `python -m pytest -m live` is the canary: the same contract assertions against
+  the real services (four requests). Run it when an upstream change is suspected;
+  it is deselected by default.
+- Re-record fixtures with `python tests/build_fixtures.py fetch` / `bulk` (needs a
+  populated `cache/`), then regenerate the golden Top 10 deliberately with
+  `UPDATE_GOLDEN=1 python -m pytest tests/test_scoring.py -k golden` and review
+  the diff. A changed golden list is a behaviour change, not noise.
+- Manual smoke test: run `python app.py`, search for "Atraxa, Praetors' Voice",
+  verify both sections render with data and the footer shows today's data date.
 
 ---
 
@@ -196,10 +221,12 @@ Run after every implementation task:
 
 ```bash
 flake8 .
-python -m py_compile app.py services/edhrec.py services/scryfall.py services/analysis.py
+python -m py_compile app.py services/edhrec.py services/scryfall.py services/analysis.py services/bulk.py services/archidekt.py
+python -m pytest
 ```
 
-Fix all errors before marking done.
+Fix all errors before marking done. When a change alters scoring on purpose,
+regenerate the golden Top 10 (see Testing) in the same commit.
 
 ---
 

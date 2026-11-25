@@ -1,6 +1,10 @@
 # MTG EDH Sleeper Picks
 
-Surfaces underplayed Commander cards using weighted Scryfall oracle-tag analysis vs. EDHRec recommendations.
+A local Flask app for Commander deckbuilding. It shows a commander's EDHRec
+recommendations and adds a **Slept On** tab: underplayed cards in the commander's
+color identity that share the features (Scryfall oracle tags, optionally card
+types) its decks over-use, scored with a feature-lift model (each feature weighted
+by how much more the commander plays it than its color-identity baseline).
 
 ## Local Setup
 
@@ -21,12 +25,16 @@ python -m venv .venv
 .venv/bin/python app.py
 ```
 
-Open http://localhost:5000, search for a commander, and wait ~30–120 seconds for the analysis to load (Scryfall data fetch).
+Open http://localhost:5000 and search for a commander (or paste an Archidekt deck
+URL). On first start the app downloads Scryfall's card data (~87 MB, gzip JSON
+Lines) into `cache/` and refreshes it daily; that takes a few seconds to a minute
+depending on your connection. After that a commander page loads in a few seconds
+(one EDHRec request plus local computation). The footer shows the date of the
+card data in use.
 
-## How It Works
+## Tests
 
-1. Fetches EDHRec recommended cards for the commander via PyEDHRec.
-2. Enriches each card with Scryfall oracle tags, price (TCGPlayer via Scryfall), and rarity.
-3. Runs weighted term-frequency analysis: tags on high-synergy EDHRec cards get higher scores.
-4. Scores every card in the commander's color identity by how many high-value tags it shares.
-5. Displays the standard EDHRec list plus a **Slept On** section of top-scoring underplayed cards.
+```bash
+.venv\Scripts\python -m pytest          # offline suite, a few seconds
+.venv\Scripts\python -m pytest -m live  # canary against the real services
+```

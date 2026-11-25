@@ -8,7 +8,8 @@ the only untrusted value that reaches the API path; the raw URL never does.
 
 Deck JSON shape (verified against ``https://archidekt.com/api/decks/1/``):
 - card name:            ``cards[].card.oracleCard.name``
-- per-card categories:  ``cards[].categories`` (list of category-name strings)
+- per-card categories:  ``cards[].categories`` (list of category-name strings;
+  the FIRST one is where Archidekt places the card)
 - deck categories:      ``categories[]`` of ``{name, isPremier, includedInDeck}``
   — the command zone is the ``isPremier`` category; ``includedInDeck: false``
   marks maybeboard-style buckets.
@@ -94,10 +95,12 @@ def _commander_names(deck: dict) -> list[str]:
 
 def _card_names(deck: dict) -> list[str]:
     """
-    Pure: mainboard card names, de-duped, order-preserving. A card is included
-    unless it has categories and none of them are deck categories included in
-    the deck (drops maybeboard/considering). Cards with no categories default
-    to included.
+    Pure: mainboard card names, de-duped, order-preserving. Archidekt places a
+    card under its FIRST category and only that one decides whether it counts:
+    ``[Removed From Deck, Ramp]`` is out of the deck even though ``Ramp`` is an
+    included category. So a card is included when its first category is a deck
+    category included in the deck (drops maybeboard/considering/cuts). Cards
+    with no categories default to included.
     """
     included = {
         c.get("name")
@@ -108,7 +111,7 @@ def _card_names(deck: dict) -> list[str]:
     seen: set[str] = set()
     for card in deck.get("cards", []):
         categories = card.get("categories") or []
-        if categories and not (set(categories) & included):
+        if categories and categories[0] not in included:
             continue
         name = _oracle_name(card)
         if name and name not in seen:
